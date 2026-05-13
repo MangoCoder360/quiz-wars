@@ -14,3 +14,40 @@
     <div id="ui-actions" style="display:none;"></div>
 </body>
 </html>
+<script>
+    function processPlayerData(playerData) {
+        if (playerData.player_status == "ingame") {
+            
+        }
+    }
+
+    function pulse() {
+        fetch(`/game/{{ game_id }}/player/get-data/{{ player_id }}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.player_status == "starting") {
+                    document.getElementById("ui-welcome").style.display = "block";
+                    document.getElementById("ui-question").style.display = "none";
+                    document.getElementById("ui-actions").style.display = "none";
+                } else if (data.player_status == "ingame") {
+                    document.getElementById("ui-welcome").style.display = "none";
+                    processPlayerData(data);
+                } else if (data.player_status == "kicked") {
+                    alert("You have been removed from the game by the host.");
+                    window.location.href = "/";
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching player status:', error);
+            });
+    }
+
+    setInterval(() => {
+        pulse();
+    }, 1000);
+</script>

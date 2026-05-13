@@ -319,12 +319,16 @@ def kick_player(game_id, player_id):
     players[player_id]["player_status"] = "kicked"
     return "200 OK"
 
-@app.route("/game/player/get-data/<int:player_id>")
-def get_player_status(player_id):
-    for game in active_games.values():
-        for player in game.get("players", []):
-            if player["id"] == player_id:
-                return player
+@app.route("/game/<int:game_id>/player/get-data/<int:player_id>")
+def get_player_status(game_id, player_id):
+    game_data = active_games.get(game_id)
+    if not game_data:
+        return "Game not found", 404
+
+    players = game_data.get("players", [])
+    for player in players:
+        if player["id"] == player_id:
+            return player
     return "Player not found", 404
 
 @app.route("/game/start/<int:game_id>")

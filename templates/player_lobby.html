@@ -260,7 +260,7 @@
 </html>
 <script>
     function statusCheck() {
-        fetch(`/game/player/get-data/{{ player_id }}`)
+        fetch(`/game/{{ game_id }}/player/get-data/{{ player_id }}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');

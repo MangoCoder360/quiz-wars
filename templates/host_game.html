@@ -18,7 +18,26 @@
         </div>
     </div>
     <div id="game-ui">
-
+        <div id="bossbars">
+            <div id="avatar-health">
+                <div class="avatar-bossbar">
+                    <h1>Wizard</h1>
+                    <input type="range" value="100" max="100">
+                </div>
+                <div class="avatar-bossbar">
+                    <h1>Knight</h1>
+                    <input type="range" value="100" max="100">
+                </div>
+                <div class="avatar-bossbar">
+                    <h1>Monk</h1>
+                    <input type="range" value="100" max="100">
+                </div>
+            </div>
+            <div id="boss-health">
+                <h1>Jonah</h1>
+                <input type="range" id="boss-health-bar" value="100" max="100">
+            </div>
+        </div>
     </div>
 </body>
 </html>
@@ -127,6 +146,58 @@
         border-radius: 10px;
         padding: 5px 10px;
         min-width: 120px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+
+
+    /* GAME UI STYLES */
+    #game-ui {
+        display: none;
+        padding: 20px;
+    }
+    #bossbars {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        width: 100%;
+        min-height: 25vh;
+        box-sizing: border-box;
+    }
+    #avatar-health {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+        padding: 16px;
+        border: 2px solid #333;
+        border-radius: 12px;
+        background-color: white;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+    .avatar-bossbar {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+        width: 100%;
+    }
+    .avatar-bossbar h1 {
+        margin: 0;
+        min-width: 90px;
+        text-align: left;
+    }
+    .avatar-bossbar input[type="range"] {
+        width: 240px;
+    }
+    #boss-health {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 16px;
+        border: 2px solid #333;
+        border-radius: 12px;
+        background-color: white;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     }
 </style>
