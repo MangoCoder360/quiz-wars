@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Wars – Question Set Editor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 24px;
+            max-width: 980px;
+        }
+        .row {
+            margin-bottom: 12px;
+        }
+        .question-card {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .option-row {
+            display: grid;
+            grid-template-columns: 24px 1fr;
+            align-items: center;
+            gap: 8px;
+            margin: 8px 0;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+        }
+        button {
+            padding: 8px 12px;
+            margin-right: 8px;
+        }
+        .success {
+            color: #0b7a2f;
+            font-weight: bold;
+        }
+        .error {
+            color: #a30000;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Edit Question Set: {{ set_name }}</h1>
+
+    {% if success_msg %}
+    <p class="success">{{ success_msg }}</p>
+    {% endif %}
+
+    {% if error_msg %}
+    <p class="error">{{ error_msg }}</p>
+    {% endif %}
+
+    <form id="editorForm" method="POST" action="/question-sets/edit/{{ set_name }}">
+        <input type="hidden" name="set_data_json" id="setDataJson">
+
+        <div class="row">
+            <label for="displayName"><strong>Display Name</strong></label>
+            <input id="displayName" type="text" value="{{ set_data.displayName or '' }}" required>
+        </div>
+
+        <div class="row">
+            <label for="description"><strong>Description</strong></label>
+            <textarea id="description" rows="2">{{ set_data.description or '' }}</textarea>
+        </div>
+
+        <h2>Questions</h2>
+        <div id="questionsContainer"></div>
+
+        <div class="row">
+            <button type="button" id="addQuestionBtn">Add Question</button>
+            <button type="submit">Save Question Set</button>
+        </div>
+    </form>
+
+    <script id="existingDataJson" type="application/json">{{ set_data|tojson }}</script>
+    <script>
+        const existingData = JSON.parse(document.getElementById("existingDataJson").textContent || "{}");
+        const questionsContainer = document.getElementById("questionsContainer");
+        const editorForm = document.getElementById("editorForm");
+        const setDataJsonInput = document.getElementById("setDataJson");
+        const addQuestionBtn = document.getElementById("addQuestionBtn");
+
+        function makeQuestionCard(questionData = null) {
+            const card = document.createElement("div");
+            card.className = "question-card";
+
+            const qText = (questionData && questionData.question) ? questionData.question : "";
+            const incomingOptions = (questionData && Array.isArray(questionData.options)) ? questionData.options.slice(0, 4) : [];
+            while (incomingOptions.length < 4) {
+                incomingOptions.push({ text: "", isCorrect: false });
+            }
+
+            const checkedIndex = Math.max(0, incomingOptions.findIndex(o => o && o.isCorrect === true));
+
+            const radioGroup = `correct_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+            card.innerHTML = `
+                <div class="row">
+                    <label><strong>Question</strong></label>
+                    <input type="text" class="question-text" value="${escapeHtml(qText)}" required>
+                </div>
+                <div class="row"><strong>Options (exactly 4)</strong></div>
+                ${incomingOptions.map((option, idx) => `
+                    <div class="option-row">
+                        <input type="radio" name="${radioGroup}" class="option-correct" ${idx === checkedIndex ? "checked" : ""}>
+                        <input type="text" class="option-text" value="${escapeHtml(option && option.text ? option.text : "")}" placeholder="Option ${idx + 1}" required>
+                    </div>
+                `).join("")}
+                <div class="row">
+                    <button type="button" class="remove-question">Remove Question</button>
+                </div>
+            `;
+
+            card.querySelector(".remove-question").addEventListener("click", () => {
+                card.remove();
+            });
+
+            questionsContainer.appendChild(card);
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;");
+        }
+
+        addQuestionBtn.addEventListener("click", () => {
+            makeQuestionCard();
+        });
+
+        const existingQuestions = Array.isArray(existingData.questions) ? existingData.questions : [];
+        if (existingQuestions.length) {
+            existingQuestions.forEach(q => makeQuestionCard(q));
+        } else {
+            makeQuestionCard();
+        }
+
+        editorForm.addEventListener("submit", (event) => {
+            const displayName = document.getElementById("displayName").value.trim();
+            const description = document.getElementById("description").value;
+            const questionCards = Array.from(document.querySelectorAll(".question-card"));
+
+            if (!displayName) {
+                event.preventDefault();
+                alert("Display name is required.");
+                return;
+            }
+
+            const questions = [];
+            for (let i = 0; i < questionCards.length; i++) {
+                const card = questionCards[i];
+                const questionText = card.querySelector(".question-text").value.trim();
+                const optionInputs = Array.from(card.querySelectorAll(".option-text"));
+                const correctInputs = Array.from(card.querySelectorAll(".option-correct"));
+
+                if (!questionText) {
+                    event.preventDefault();
+                    alert(`Question ${i + 1} must include question text.`);
+                    return;
+                }
+
+                if (optionInputs.length !== 4 || correctInputs.length !== 4) {
+                    event.preventDefault();
+                    alert(`Question ${i + 1} must have exactly 4 options.`);
+                    return;
+                }
+
+                const options = optionInputs.map((input, idx) => {
+                    return {
+                        text: input.value.trim(),
+                        isCorrect: correctInputs[idx].checked
+                    };
+                });
+
+                if (options.some(o => !o.text)) {
+                    event.preventDefault();
+                    alert(`Question ${i + 1} has an empty option.`);
+                    return;
+                }
+
+                const correctCount = options.filter(o => o.isCorrect).length;
+                if (correctCount !== 1) {
+                    event.preventDefault();
+                    alert(`Question ${i + 1} must have exactly one correct answer.`);
+                    return;
+                }
+
+                questions.push({
+                    question: questionText,
+                    options
+                });
+            }
+
+            const payload = {
+                displayName,
+                description,
+                questions
+            };
+
+            setDataJsonInput.value = JSON.stringify(payload);
+        });
+    </script>
+</body>
+</html>

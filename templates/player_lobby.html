@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Quiz Wars - Player Lobby</title>
+    <style>
+        @font-face {
+            font-family: 'DPComic';
+            src: url('/static/dpcomic.regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        :root {
+            --bg: #06101d;
+            --panel: rgba(8, 18, 34, 0.78);
+            --panel-strong: rgba(10, 24, 44, 0.92);
+            --text: #f5f7fb;
+            --muted: rgba(245, 247, 251, 0.72);
+            --accent: #6fe7ff;
+            --accent-2: #7c9cff;
+            --border: rgba(255, 255, 255, 0.12);
+            --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            min-height: 100%;
+            margin: 0;
+        }
+
+        body {
+            font-family: 'DPComic', system-ui, sans-serif;
+            
+            color: var(--text);
+            background:
+                linear-gradient(135deg, rgba(6, 16, 29, 0.92), rgba(6, 16, 29, 0.64)),
+                url('/static/panorama.jpg') center/cover no-repeat fixed;
+        }
+
+        .page {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
+
+        .lobby-shell {
+            width: min(500px, 100%);
+            position: relative;
+        }
+
+        .card {
+            position: relative;
+            display: grid;
+            gap: 24px;
+            padding: 28px;
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            /* background: linear-gradient(180deg, var(--panel), var(--panel-strong)); */
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(16px);
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 38%);
+            pointer-events: none;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--muted);
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .brand-mark {
+            width: 11px;
+            height: 11px;
+            border-radius: 1px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 0 24px rgba(111, 231, 255, 0.75);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(2.4rem, 5vw, 4.5rem);
+            line-height: 0.95;
+        }
+
+        .subtitle {
+            margin: 18px 0 0;
+            max-width: 100ch;
+            font-size: 1rem;
+            line-height: 1.65;
+            color: var(--muted);
+        }
+
+        .status-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 125, 125, 0.08);
+            color: var(--text);
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .pill-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #78f1a1;
+            box-shadow: 0 0 16px rgba(120, 241, 161, 0.8);
+            animation: pulse 1.8s ease-in-out infinite;
+        }
+
+        .footer-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-top: 20px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .signal {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .signal-bars {
+            display: inline-flex;
+            align-items: end;
+            gap: 3px;
+            height: 18px;
+        }
+
+        .signal-bars span {
+            width: 4px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, var(--accent), var(--accent-2));
+            animation: wave 1.2s ease-in-out infinite;
+        }
+
+        .signal-bars span:nth-child(1) { height: 8px; animation-delay: 0s; }
+        .signal-bars span:nth-child(2) { height: 14px; animation-delay: 0.15s; }
+        .signal-bars span:nth-child(3) { height: 18px; animation-delay: 0.3s; }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0.82); opacity: 0.7; }
+        }
+
+        @keyframes wave {
+            0%, 100% { transform: scaleY(0.7); opacity: 0.65; }
+            50% { transform: scaleY(1); opacity: 1; }
+        }
+
+        @media (max-width: 840px) {
+            .card {
+                grid-template-columns: 1fr;
+                padding: 22px;
+                border-radius: 24px;
+            }
+
+            .footer-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .page {
+                padding: 14px;
+            }
+
+            .card {
+                gap: 18px;
+                padding: 18px;
+            }
+
+            .subtitle {
+                font-size: 0.96rem;
+            }
+
+            .pill,
+            .leave-link {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <section class="lobby-shell">
+            <div class="card">
+                <div>
+                    <div class="brand"><span class="brand-mark"></span> Quiz Wars Lobby</div>
+                    <h1>Welcome</h1>
+                    <p class="subtitle">
+                        Waiting for the host to start the game. Do not close or reload this tab.
+                    </p>
+
+                    <div class="status-row">
+                        <div class="pill"><span id="pill-dot" class="pill-dot"></span> <span id="status-pill-text">Waiting for host</span></div>
+                        <div class="pill">Your name: {{ player_name | default('Guest player') }}</div>
+                    </div>
+
+                    <div class="footer-row">
+                        <div class="signal">
+                            <span class="signal-bars" id="signal-bars" aria-hidden="true">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </span>
+                            Connected to game #{{ game_id | default('-----') }}
+                        </div>
+                    </div>
+
+                    <div class="footer-row" id="leave-ui" style="display:none;">
+                        <a href="/" class="leave-link" style="color: var(--accent); text-decoration: none; font-weight: 600;">Leave Game and Return to Main Menu</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
+<script>
+    function statusCheck() {
+        fetch(`/game/player/get-data/{{ player_id }}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(playerData => {
+                if (playerData.player_status == "kicked") {
+                    const bars = document.querySelectorAll('.signal-bars span');
+                    bars.forEach(bar => {
+                        bar.style.background = 'linear-gradient(180deg, #ff6e6e, #ff0000)';
+                        bar.style.animation = 'none';
+                    });
+
+                    document.getElementById('status-pill-text').textContent = 'You have been kicked from the game';
+                    document.getElementById('pill-dot').style.background = '#ff6e6e';
+
+                    document.getElementById('leave-ui').style.display = 'block';
+                }
+
+                if (playerData.player_status == "starting") {
+                    document.getElementById('status-pill-text').textContent = 'Game is starting...';
+                    document.getElementById('pill-dot').style.background = '#78f1a1';
+                }
+            })
+            .catch(error => {
+                console.error('Error checking player status:', error);
+            });
+    }
+
+    // Check player status every few seconds
+    setInterval(statusCheck, 3000);
+</script>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Wars – Host</title>
+</head>
+<body>
+    <div id="waiting-room">
+        <div class="title">
+            <h1>[QUIZ WARS LOGO HERE]</h1>
+        </div>
+        <div class="ui">
+            <button onclick="startGame()">Start Game</button>
+            <h1>Join at QUIZWARS.COM</h1>
+            <h1>{{ game_id }}</h1>
+            <div id="players"></div>
+        </div>
+    </div>
+    <div id="game-ui">
+
+    </div>
+</body>
+</html>
+<script>
+    window.gamePhase = "lobby";
+
+    function tick() {
+        if (window.gamePhase == "lobby") {
+            getPlayersInLobby();
+        }
+    }
+
+    setInterval(() => {
+        tick();
+    }, 500);
+
+    function getPlayersInLobby() {
+        fetch('/game/get-players/{{ game_id }}')
+            .then(response => response.json())
+            .then(data => {
+                const playersDiv = document.getElementById('players');
+                playersDiv.innerHTML = ''; // Clear existing player boxes
+                data.forEach(player => {
+                    if (player.player_status == "kicked") {
+                        return; // Skip rendering kicked players
+                    }
+
+                    const playerBox = document.createElement('div');
+                    playerBox.className = 'player-box';
+                    playerBox.innerHTML = `<p>${player.name}</p>`;
+                    playerBox.onclick = () => {
+                        let confirmation = confirm(`Kick ${player.name} from the lobby?`);
+                        if (confirmation) {
+                            fetch(`/game/kick-player/{{ game_id }}/${player.id}`)
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('Network response was not ok');
+                                    }
+                                    getPlayersInLobby(); // Refresh the player list after kicking
+                                })
+                                .catch(error => console.error('Error kicking player:', error));
+                        }
+                    };
+                    playersDiv.appendChild(playerBox);
+                });
+            })
+            .catch(error => console.error('Error fetching players:', error));
+    }
+
+    function startGame() {
+        getPlayersInLobby(); // Final refresh to ensure we have the latest player list before starting
+        window.gamePhase = "starting";
+
+        fetch("/game/start/{{ game_id }}")
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                
+                document.getElementById('waiting-room').style.display = 'none';
+                document.getElementById('game-ui').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error starting game:', error);
+                alert("Failed to start the game. Please try again.");
+            });
+    }
+</script>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: monospace;
+        background-color: #f0f0f0;
+    }
+    #waiting-room {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+    }
+    .title {
+        display: flex;
+        justify-content: center;
+        width: 80%;
+        margin-bottom: 50px;
+    }
+    .title h1 {
+        margin: 0;
+    }
+    .ui {
+        text-align: center;
+        font-size: 1.5rem;
+    }
+    #players {
+        margin-top: 30px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+    }
+    .player-box {
+        background-color: white;
+        border: 2px solid #333;
+        border-radius: 10px;
+        padding: 5px 10px;
+        min-width: 120px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+</style>

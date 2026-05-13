@@ -3,9 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <meta name="robots" content="noindex, nofollow">
     <title>Quiz Wars</title>
 </head>
 <body>
+    <div class="title">
+        <h3>Welcome to</h3>
+        <h1>Quiz Wars</h1>
+    </div>
+    <form method="POST" action="/join-game">
+        <h3>{{ error_msg }}</h3>
+        <input type="text" name="player_name" placeholder="Enter your name" required>
+        <input oninput="validateId()" id="gameId" type="number" name="game_id" placeholder="Enter game ID" required>
+        <button>join game</button>
+    </form>
 </body>
 </html>
+<style>
+    /* Full-page setup so the animated background fills the screen */
+    html, body {
+        height: 100%;
+        margin: 0;
+
+        color: white;
+        /* temp until real bg added */
+    }
+
+    body {
+        font-family: "VT323", monospace;
+        text-align: center;
+        /* Panorama background that slides horizontally */
+        background-image: url('/static/panorama.jpg');
+        background-repeat: repeat-x;
+        background-size: cover;
+        background-position: 0% 50%;
+        animation: slide-panorama 90s linear infinite;
+        -webkit-animation: slide-panorama 90s linear infinite;
+    }
+
+    @keyframes slide-panorama {
+        from { background-position: 0% 50%; }
+        to   { background-position: 100% 50%; }
+    }
+
+    .title {
+        font-size: 5em;
+        line-height: 0.1;
+    }
+</style>
+<script>
+    function validateId() {
+        var inputtedId = document.getElementById("gameId").value;
+        if (inputtedId.length > 5){
+            document.getElementById("gameId").value = inputtedId.slice(0, 5);
+        }
+    }
+</script>

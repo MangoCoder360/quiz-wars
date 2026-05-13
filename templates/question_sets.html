@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Wars – Question Sets</title>
+</head>
+<body>
+    <h1>Question Sets:</h1>
+    <ul>
+        {% for set in question_sets %}
+            <li>{{ set.displayName }} – <a href="/question-sets/edit/{{ set.id }}">Edit questions</a> – <a href="/question-sets/delete/{{ set.id }}">Delete</a></li>
+        {% endfor %}
+    </ul>
+
+    <br>
+    <form method="POST" action="/question-sets/create">
+        <input type="text" name="id" placeholder="New question set ID">
+        <input type="text" name="display_name" placeholder="New question set display name">
+        <button>Create new question set</button>
+    </form>
+</body>
+</html>

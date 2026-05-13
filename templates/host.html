@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Wars - Host</title>
+</head>
+<body>
+    <h1>Host a new game</h1>
+    <form method="POST" action="/host">
+        <select name="question_set">
+            <option value="" disabled selected>Select a question set</option>
+            {% for set in question_sets %}
+                <option value="{{ set }}">{{ set }}</option>
+            {% endfor %}
+        </select>
+        <button>create game</button>
+    </form>
+</body>
+</html>
