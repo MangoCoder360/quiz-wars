@@ -278,6 +278,26 @@ def join_game():
         game_id=game_id,
     )
 
+@app.route("/game/<int:game_id>/p/<int:player_id>/play")
+def player_game_view(game_id, player_id):
+    game_data = active_games.get(game_id)
+    if not game_data:
+        return "Game not found", 404
+    
+    players = game_data.get("players", [])
+    if player_id < 0 or player_id >= len(players):
+        return "Player not found", 404
+    
+    player_data = players[player_id]
+    if player_data["player_status"] == "kicked":
+        return "You have been kicked from the game.", 403
+    elif player_data["player_status"] == "lobby":
+        return "Game has not started yet. Please wait for the host to start the game.", 403
+    elif player_data["player_status"] == "starting":
+        return render_template("client_game.html", game_id=game_id, player_id=player_id)
+    else:
+        return "Invalid player status", 500
+
 @app.route("/game/get-players/<int:game_id>")
 def get_players_in_game(game_id):
     game_data = active_games.get(game_id)

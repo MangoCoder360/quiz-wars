@@ -284,6 +284,10 @@
                 if (playerData.player_status == "starting") {
                     document.getElementById('status-pill-text').textContent = 'Game is starting...';
                     document.getElementById('pill-dot').style.background = '#78f1a1';
+
+                    setTimeout(() => {
+                        document.location.href = `/game/{{ game_id }}/p/{{ player_id }}/play`;
+                    }, 2000);
                 }
             })
             .catch(error => {
