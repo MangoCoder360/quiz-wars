@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Wars – Host</title>
 </head>
-<body>
+<body onload="checkGameStatus()">
     <div id="waiting-room">
         <div class="title">
             <h1>[QUIZ WARS LOGO HERE]</h1>
@@ -22,31 +22,35 @@
             <div id="avatar-health">
                 <div class="avatar-bossbar">
                     <h1>Wizard</h1>
-                    <input type="range" value="100" max="100">
+                    <input type="range" value="100" max="100" class="boss-range" disabled>
                 </div>
                 <div class="avatar-bossbar">
                     <h1>Knight</h1>
-                    <input type="range" value="100" max="100">
+                    <input type="range" value="100" max="100" class="boss-range" disabled>
                 </div>
                 <div class="avatar-bossbar">
                     <h1>Monk</h1>
-                    <input type="range" value="100" max="100">
+                    <input type="range" value="100" max="100" class="boss-range" disabled>
                 </div>
             </div>
             <div id="boss-health">
                 <h1>Jonah</h1>
-                <input type="range" id="boss-health-bar" value="100" max="100">
+                <input type="range" id="boss-health-bar" value="100" max="100" class="boss-range" disabled>
             </div>
         </div>
     </div>
 </body>
 </html>
 <script>
-    window.gamePhase = "lobby";
+    window.gameStatus = "lobby";
 
     function tick() {
-        if (window.gamePhase == "lobby") {
+        if (window.gameStatus == "lobby") {
             getPlayersInLobby();
+        }
+
+        if (window.gameStatus == "starting") {
+            renderGameState();
         }
     }
 
@@ -89,7 +93,7 @@
 
     function startGame() {
         getPlayersInLobby(); // Final refresh to ensure we have the latest player list before starting
-        window.gamePhase = "starting";
+        window.gameStatus = "starting";
 
         fetch("/game/start/{{ game_id }}")
             .then(response => {
@@ -104,6 +108,79 @@
                 console.error('Error starting game:', error);
                 alert("Failed to start the game. Please try again.");
             });
+    }
+
+    function checkGameStatus() {
+        fetch('/game/state/{{ game_id }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.game_status == "starting") {
+                    window.gameStatus = "starting";
+                    document.getElementById('waiting-room').style.display = 'none';
+                    document.getElementById('game-ui').style.display = 'block';
+                }
+            })
+            .catch(error => console.error('Error checking game status:', error));
+    }
+
+    function renderGameState() {
+        fetch('/game/state/{{ game_id }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.game_status == "starting") {
+                    // Update boss health (if present)
+                    const bossHealthBar = document.getElementById('boss-health-bar');
+                    if (bossHealthBar && data.boss_health != null) {
+                        if (data.boss_health > bossHealthBar.max) bossHealthBar.max = data.boss_health;
+                        bossHealthBar.value = data.boss_health;
+                        const bossPercent = bossHealthBar.max > 0 ? Math.round((data.boss_health / bossHealthBar.max) * 100) : 0;
+                        bossHealthBar.style.setProperty('--hp-percent', bossPercent + '%');
+                    }
+
+                    // Update avatar health bars. The server sends `avatars` as an object
+                    // keyed by avatar name (e.g. { "Knight": { hp: 40, name: "Knight" }, ... }).
+                    const avatars = data.avatars;
+                    const bars = Array.from(document.querySelectorAll('.avatar-bossbar'));
+
+                        function updateBarByName(name, hp) {
+                        if (!name) return;
+                        const match = bars.find(div => {
+                            const h = div.querySelector('h1');
+                            return h && h.textContent.trim().toLowerCase() === name.trim().toLowerCase();
+                        });
+                        if (!match) return;
+                        const input = match.querySelector('input[type="range"]');
+                        if (input && typeof hp === 'number') {
+                            if (hp > input.max) input.max = Math.max(hp, input.max || 100);
+                            input.value = hp;
+                                const percent = input.max > 0 ? Math.round((hp / input.max) * 100) : 0;
+                                input.style.setProperty('--hp-percent', percent + '%');
+                        }
+                        // show numeric hp next to the name
+                        let hpSpan = match.querySelector('.hp-value');
+                        if (!hpSpan) {
+                            hpSpan = document.createElement('span');
+                            hpSpan.className = 'hp-value';
+                            hpSpan.style.marginLeft = '8px';
+                            const h = match.querySelector('h1');
+                            if (h) h.after(hpSpan);
+                        }
+                        hpSpan.textContent = typeof hp === 'number' ? hp : '';
+                    }
+
+                    if (avatars) {
+                        if (Array.isArray(avatars)) {
+                            avatars.forEach(av => updateBarByName(av.name || av.player || '', av.hp || av.health));
+                        } else {
+                            Object.keys(avatars).forEach(key => {
+                                const av = avatars[key] || {};
+                                updateBarByName(av.name || key, av.hp || av.health);
+                            });
+                        }
+                    }
+                }
+            })
+            .catch(error => console.error('Error fetching game state:', error));
     }
 </script>
 <style>
@@ -170,7 +247,7 @@
         align-items: flex-start;
         padding: 16px;
         border: 2px solid #333;
-        border-radius: 12px;
+        border-radius: 2px;
         background-color: white;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     }
@@ -189,6 +266,44 @@
     .avatar-bossbar input[type="range"] {
         width: 240px;
     }
+    .hp-value {
+        font-size: 0.9rem;
+        color: #222;
+        margin-left: 8px;
+    }
+
+    /* Bossbar visual styles (non-interactable) */
+    input.boss-range {
+        -webkit-appearance: none;
+        appearance: none;
+        pointer-events: none;
+        height: 14px;
+        border-radius: 8px;
+        background: #444;
+        width: 240px;
+        overflow: hidden;
+    }
+    input.boss-range::-webkit-slider-runnable-track {
+        height: 14px;
+        -webkit-appearance: none;
+        border-radius: 8px;
+        background: linear-gradient(90deg, #e74c3c 0%, #e74c3c var(--hp-percent,100%), #444 var(--hp-percent,100%), #444 100%);
+    }
+    input.boss-range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 0;
+        height: 0;
+    }
+    input.boss-range::-moz-range-track {
+        height: 14px;
+        border-radius: 8px;
+        background: linear-gradient(90deg, #e74c3c 0%, #e74c3c var(--hp-percent,100%), #444 var(--hp-percent,100%), #444 100%);
+    }
+    input.boss-range::-moz-range-thumb { display: none; }
+
+    /* Boss health with different color */
+    #boss-health input.boss-range::-webkit-slider-runnable-track { background: linear-gradient(90deg, #8e44ad 0%, #8e44ad var(--hp-percent,100%), #444 var(--hp-percent,100%), #444 100%); }
+    #boss-health input.boss-range::-moz-range-track { background: linear-gradient(90deg, #8e44ad 0%, #8e44ad var(--hp-percent,100%), #444 var(--hp-percent,100%), #444 100%); }
     #boss-health {
         display: flex;
         flex-direction: column;
@@ -196,7 +311,7 @@
         gap: 10px;
         padding: 16px;
         border: 2px solid #333;
-        border-radius: 12px;
+        border-radius: 2px;
         background-color: white;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     }

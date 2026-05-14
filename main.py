@@ -242,6 +242,11 @@ def join_game():
 
     if not is_game_id_valid(game_id):
         return render_template("index.html", error_msg="Game does not exist. Check game ID and try again.")
+    
+    # check for duplicate names in that game
+    for player in active_games[int(game_id)]["players"]:
+        if player["name"].lower() == player_name.lower():
+            return render_template("index.html", error_msg="A player with that name already exists in this game. Please choose a different name and try again.")
 
     name_flagged = False
 
@@ -377,6 +382,32 @@ def start_game(game_id):
     print("Ready to start..")
 
     return "200 OK"
+
+@app.route("/game/state/<int:game_id>")
+def get_full_game_state(game_id):
+    game_data = active_games.get(game_id)
+    if not game_data:
+        return "Game not found", 404
+    def _sanitize(obj):
+        # dict -> sanitize each value
+        if isinstance(obj, dict):
+            return {k: _sanitize(v) for k, v in obj.items()}
+        # list/tuple -> sanitize items
+        if isinstance(obj, (list, tuple)):
+            return [_sanitize(v) for v in obj]
+        # objects with __dict__ (like avatar instances) -> convert to their attributes
+        if hasattr(obj, '__dict__'):
+            return _sanitize(vars(obj))
+        # basic JSON types passthrough
+        if isinstance(obj, (str, int, float, bool)) or obj is None:
+            return obj
+        # fallback: stringify unknown types
+        try:
+            return str(obj)
+        except Exception:
+            return None
+
+    return _sanitize(game_data)
 
 @app.route("/debug")
 def debug_options():

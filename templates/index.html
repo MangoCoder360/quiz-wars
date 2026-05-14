@@ -12,7 +12,9 @@
 <body>
     <div class="title">
         <h3>Welcome to</h3>
-        <h1>Quiz Wars</h1>
+        <!-- <h1>Quiz Wars</h1> -->
+        <img class="logo" src="/static/quizWarsTitle.png" alt="Quiz Wars Logo">
+        <br><br><br>
     </div>
     <form method="POST" action="/join-game">
         <h3>{{ error_msg }}</h3>
@@ -30,13 +32,19 @@
 
         color: white;
         /* temp until real bg added */
+
+        image-rendering: pixelated;
+    }
+
+    .logo {
+        width: 30%;
     }
 
     body {
         font-family: "VT323", monospace;
         text-align: center;
         /* Panorama background that slides horizontally */
-        background-image: url('/static/panorama.jpg');
+        background-image: url('/static/mainMenuPanorama.png');
         background-repeat: repeat-x;
         background-size: cover;
         background-position: 0% 50%;

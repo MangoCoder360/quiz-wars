@@ -23,6 +23,8 @@
             --accent-2: #7c9cff;
             --border: rgba(255, 255, 255, 0.12);
             --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+            image-rendering: pixelated;
         }
 
         * {
@@ -40,7 +42,7 @@
             color: var(--text);
             background:
                 linear-gradient(135deg, rgba(6, 16, 29, 0.92), rgba(6, 16, 29, 0.64)),
-                url('/static/panorama.jpg') center/cover no-repeat fixed;
+                url('/static/mainMenuPanoramaNight.png') center/cover no-repeat fixed;
         }
 
         .page {
@@ -289,9 +291,17 @@
                         document.location.href = `/game/{{ game_id }}/p/{{ player_id }}/play`;
                     }, 2000);
                 }
+
+                if (playerData.player_status == "lobby") {
+                    document.getElementById('status-pill-text').textContent = 'Waiting for host';
+                    document.getElementById('pill-dot').style.background = '#78f1a1';
+                }
             })
             .catch(error => {
                 console.error('Error checking player status:', error);
+
+                document.getElementById('status-pill-text').textContent = 'Connection lost. Attempting to reconnect...';
+                document.getElementById('pill-dot').style.background = '#ff6e6e';
             });
     }
 
