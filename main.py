@@ -15,6 +15,7 @@ active_games = {
     6767: {
         "question_set": "test",
         "game_status": "lobby",
+        "boss_health": 100,
         "avatars": {
             "Wizard": avatars.Wizard(),
             "Knight": avatars.Knight(),

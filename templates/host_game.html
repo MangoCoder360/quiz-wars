@@ -38,6 +38,26 @@
                 <input type="range" id="boss-health-bar" value="100" max="100" class="boss-range" disabled>
             </div>
         </div>
+        <div id="game-stage">
+            <div id="avatar-row">
+                <div class="avatar-slot">
+                    <img class="avatar-image" alt="Wizard avatar" src="/static/wizard.png">
+                    <div class="avatar-label">Wizard</div>
+                </div>
+                <div class="avatar-slot">
+                    <img class="avatar-image" alt="Knight avatar" src="/static/knight.png">
+                    <div class="avatar-label">Knight</div>
+                </div>
+                <div class="avatar-slot">
+                    <img class="avatar-image" alt="Monk avatar" src="/static/monk.png">
+                    <div class="avatar-label">Monk</div>
+                </div>
+            </div>
+            <div id="boss-area">
+                <img class="boss-image" alt="Boss" src="/static/boss.png">
+                <div class="boss-label">JONAH</div>
+            </div>
+        </div>
     </div>
 </body>
 </html>
@@ -189,6 +209,8 @@
         padding: 0;
         font-family: monospace;
         background-color: #f0f0f0;
+
+        image-rendering: pixelated;
     }
     #waiting-room {
         display: flex;
@@ -280,7 +302,7 @@
         height: 14px;
         border-radius: 8px;
         background: #444;
-        width: 240px;
+        width: 80%;
         overflow: hidden;
     }
     input.boss-range::-webkit-slider-runnable-track {
@@ -310,9 +332,53 @@
         align-items: center;
         gap: 10px;
         padding: 16px;
+        width: 500px;
         border: 2px solid #333;
         border-radius: 2px;
         background-color: white;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+
+    #game-stage {
+        margin-top: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        min-height: 60vh;
+    }
+    #avatar-row {
+        display: flex;
+        gap: 20px;
+        align-items: flex-end;
+        padding-left: 8px;
+    }
+    .avatar-slot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    .avatar-image {
+        width: 270px;
+        height: 270px;
+        object-fit: contain;
+        display: block;
+    }
+    #boss-area {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding-right: 24px;
+    }
+    .boss-image {
+        width: 500px;
+        height: 400px;
+        object-fit: cover;
+        display: block;
+    }
+    .avatar-label,
+    .boss-label {
+        font-size: 1.2rem;
     }
 </style>
