@@ -4,13 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Wars – In-game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        {% raw %}
+        /* Styles limited to the in-game UI question area */
+        :root{--parchment:#f7efe0;--accent:#6b4423;--accent-2:#8b5a2b;--text:#231f20}
+        body{font-family:'Cormorant Garamond', serif;color:var(--text);background:transparent}
+        #ui-question{display:none}
+        #ui-question .question-panel{max-width:1100px;margin:12px auto;padding:14px;background:linear-gradient(180deg,#fbf6ea,#f6efe0);border:6px solid rgba(0,0,0,0.06);box-shadow:0 6px 14px rgba(0,0,0,0.08)}
+        #ui-question .question-title{font-family:'Cinzel', serif;text-align:center;font-size:26px;color:var(--accent-2);padding:10px 6px}
+        #ui-question .answers-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;margin-top:10px}
+        #ui-question .answer-tile{background:linear-gradient(180deg,#fffaf0,#f3ead6);padding:30px;border:3px solid rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
+        #ui-question .answer-tile:focus{outline:3px solid rgba(107,68,35,0.12)}
+        #ui-question .answer-tile:hover{transform:translateY(-4px);box-shadow:0 8px 20px rgba(0,0,0,0.12)}
+        #ui-question .answer-label{font-size:20px;color:var(--accent);font-weight:600}
+        @media (max-width:720px){#ui-question .answers-grid{grid-template-columns:1fr;grid-template-rows:repeat(4,auto)}#ui-question .answer-tile{padding:18px}}
+        {% endraw %}
+    </style>
 </head>
 <body>
     <div id="ui-welcome">
         <h1>Welcome to Quiz Wars!</h1>
         <p>Get ready for an exciting quiz battle. The game will start shortly.</p>
     </div>
-    <div id="ui-question" style="display:none;"></div>
+    <div id="ui-question" style="display:none;">
+        <div class="question-panel" role="region" aria-label="Question area">
+            <div class="question-title" id="question-text">Question</div>
+
+            <div class="answers-grid" role="list" aria-label="Answer choices">
+                <div class="answer-tile" id="answer-1" role="button" tabindex="0">
+                    <div class="answer-label">Answer A</div>
+                </div>
+                <div class="answer-tile" id="answer-2" role="button" tabindex="0">
+                    <div class="answer-label">Answer B</div>
+                </div>
+                <div class="answer-tile" id="answer-3" role="button" tabindex="0">
+                    <div class="answer-label">Answer C</div>
+                </div>
+                <div class="answer-tile" id="answer-4" role="button" tabindex="0">
+                    <div class="answer-label">Answer D</div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="ui-actions" style="display:none;"></div>
 </body>
 </html>
