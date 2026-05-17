@@ -22,21 +22,26 @@
             <div id="avatar-health">
                 <div class="avatar-bossbar">
                     <h1>Wizard</h1>
-                    <input type="range" value="100" max="100" class="boss-range" disabled>
+                    <input type="range" value="25" max="25" class="boss-range" disabled>
                 </div>
                 <div class="avatar-bossbar">
                     <h1>Knight</h1>
-                    <input type="range" value="100" max="100" class="boss-range" disabled>
+                    <input type="range" value="40" max="40" class="boss-range" disabled>
                 </div>
                 <div class="avatar-bossbar">
                     <h1>Monk</h1>
-                    <input type="range" value="100" max="100" class="boss-range" disabled>
+                    <input type="range" value="35" max="35" class="boss-range" disabled>
                 </div>
             </div>
             <div id="boss-health">
                 <h1>Jonah</h1>
-                <input type="range" id="boss-health-bar" value="100" max="100" class="boss-range" disabled>
+                <input type="range" id="boss-health-bar" value="300" max="300" class="boss-range" disabled>
+                <div id="boss-health-value">300 / 300</div>
             </div>
+        </div>
+        <div id="phase-indicator">
+            <div id="phase-label">ANSWER PHASE</div>
+            <div id="phase-timer">60s</div>
         </div>
         <div id="game-stage">
             <div id="avatar-row">
@@ -63,6 +68,7 @@
 </html>
 <script>
     window.gameStatus = "lobby";
+    window.lastRoundSignature = null;
 
     const quizWarsAnimationDefaults = Object.freeze({
         attack: 560,
@@ -222,7 +228,7 @@
             getPlayersInLobby();
         }
 
-        if (window.gameStatus == "starting") {
+        if (window.gameStatus == "in-progress") {
             renderGameState();
         }
     }
@@ -266,7 +272,7 @@
 
     function startGame() {
         getPlayersInLobby(); // Final refresh to ensure we have the latest player list before starting
-        window.gameStatus = "starting";
+        window.gameStatus = "in-progress";
 
         fetch("/game/start/{{ game_id }}")
             .then(response => {
@@ -287,8 +293,8 @@
         fetch('/game/state/{{ game_id }}')
             .then(response => response.json())
             .then(data => {
-                if (data.game_status == "starting") {
-                    window.gameStatus = "starting";
+                if (data.game_status == "in-progress") {
+                    window.gameStatus = "in-progress";
                     document.getElementById('waiting-room').style.display = 'none';
                     document.getElementById('game-ui').style.display = 'block';
                 }
@@ -300,36 +306,33 @@
         fetch('/game/state/{{ game_id }}')
             .then(response => response.json())
             .then(data => {
-                if (data.game_status == "starting") {
-                    // Update boss health (if present)
+                if (data.game_status == "in-progress") {
+                    const bossHp = data.boss_state?.hp ?? data.game_state?.boss_hp ?? data.boss_health ?? 300;
                     const bossHealthBar = document.getElementById('boss-health-bar');
-                    if (bossHealthBar && data.boss_health != null) {
-                        if (data.boss_health > bossHealthBar.max) bossHealthBar.max = data.boss_health;
-                        bossHealthBar.value = data.boss_health;
-                        const bossPercent = bossHealthBar.max > 0 ? Math.round((data.boss_health / bossHealthBar.max) * 100) : 0;
-                        bossHealthBar.style.setProperty('--hp-percent', bossPercent + '%');
+                    const bossHealthValue = document.getElementById('boss-health-value');
+                    if (bossHealthBar) {
+                        bossHealthBar.value = bossHp;
+                        bossHealthBar.max = 300;
+                        const hpPercent = Math.max(0, Math.min(100, (bossHp / 300) * 100));
+                        bossHealthBar.style.setProperty('--hp-percent', `${hpPercent}%`);
+                        bossHealthBar.setAttribute('aria-valuenow', String(bossHp));
+                        bossHealthBar.setAttribute('aria-valuemax', '300');
+                    }
+                    if (bossHealthValue) {
+                        bossHealthValue.textContent = `${Math.max(0, bossHp)} / 300`;
                     }
 
-                    // Update avatar health bars. The server sends `avatars` as an object
-                    // keyed by avatar name (e.g. { "Knight": { hp: 40, name: "Knight" }, ... }).
-                    const avatars = data.avatars;
-                    const bars = Array.from(document.querySelectorAll('.avatar-bossbar'));
-
-                        function updateBarByName(name, hp) {
-                        if (!name) return;
-                        const match = bars.find(div => {
+                    const updateBarByName = (name, hp, maxHp) => {
+                        const match = Array.from(document.querySelectorAll('.avatar-bossbar')).find(div => {
                             const h = div.querySelector('h1');
-                            return h && h.textContent.trim().toLowerCase() === name.trim().toLowerCase();
+                            return h && h.textContent.trim().toLowerCase() === String(name).trim().toLowerCase();
                         });
                         if (!match) return;
                         const input = match.querySelector('input[type="range"]');
-                        if (input && typeof hp === 'number') {
-                            if (hp > input.max) input.max = Math.max(hp, input.max || 100);
+                        if (input) {
+                            input.max = maxHp;
                             input.value = hp;
-                                const percent = input.max > 0 ? Math.round((hp / input.max) * 100) : 0;
-                                input.style.setProperty('--hp-percent', percent + '%');
                         }
-                        // show numeric hp next to the name
                         let hpSpan = match.querySelector('.hp-value');
                         if (!hpSpan) {
                             hpSpan = document.createElement('span');
@@ -338,18 +341,69 @@
                             const h = match.querySelector('h1');
                             if (h) h.after(hpSpan);
                         }
-                        hpSpan.textContent = typeof hp === 'number' ? hp : '';
+                        hpSpan.textContent = `${Math.max(0, hp)} / ${maxHp}`;
+                    };
+
+                    const avatarStates = data.avatar_states || {};
+                    updateBarByName('Wizard', avatarStates.Wizard?.hp ?? 25, 25);
+                    updateBarByName('Knight', avatarStates.Knight?.hp ?? 40, 40);
+                    updateBarByName('Monk', avatarStates.Monk?.hp ?? 35, 35);
+
+                    // Update countdown timer - always try to update even if data missing
+                    const currentPhase = data.current_phase || 'answer';
+                    const phaseLabel = document.getElementById('phase-label');
+                    const phaseTimer = document.getElementById('phase-timer');
+                    
+                    if (phaseLabel) {
+                        phaseLabel.textContent = currentPhase === 'answer' ? 'ANSWER PHASE' : 'VOTE PHASE';
                     }
 
-                    if (avatars) {
-                        if (Array.isArray(avatars)) {
-                            avatars.forEach(av => updateBarByName(av.name || av.player || '', av.hp || av.health));
+                    // Always attempt to update timer if we have time data
+                    if (phaseTimer && data.server_time != null && data.answer_phase_started_at != null) {
+                        let timeRemaining = 0;
+                        
+                        if (currentPhase === 'answer') {
+                            const answerTimeout = data.answer_timeout_seconds || 60;
+                            const serverElapsed = data.server_time - data.answer_phase_started_at;
+                            timeRemaining = Math.max(0, Math.ceil(answerTimeout - serverElapsed));
+                        } else if (currentPhase === 'vote' && data.vote_phase_started_at != null) {
+                            const voteTimeout = data.vote_timeout_seconds || 30;
+                            const serverElapsed = data.server_time - data.vote_phase_started_at;
+                            timeRemaining = Math.max(0, Math.ceil(voteTimeout - serverElapsed));
+                        }
+                        
+                        phaseTimer.textContent = timeRemaining + 's';
+                        // Add visual warning when time is running out
+                        if (timeRemaining <= 10) {
+                            phaseTimer.style.color = '#ff4444';
+                            phaseTimer.style.fontWeight = 'bold';
                         } else {
-                            Object.keys(avatars).forEach(key => {
-                                const av = avatars[key] || {};
-                                updateBarByName(av.name || key, av.hp || av.health);
+                            phaseTimer.style.color = '#fff';
+                            phaseTimer.style.fontWeight = 'bold';
+                        }
+                    } else {
+                        // Missing data - show placeholder
+                        if (phaseTimer) {
+                            phaseTimer.textContent = '--s';
+                            phaseTimer.style.color = '#ccc';
+                        }
+                    }
+
+                    const signature = JSON.stringify(data.round_results || {});
+                    if (data.round_results && signature !== window.lastRoundSignature) {
+                        window.lastRoundSignature = signature;
+                        const roundLog = data.round_results.actions || [];
+                        if (roundLog.length > 0 && window.quizWarsAnimations) {
+                            roundLog.forEach(entry => {
+                                if (entry.avatar) {
+                                    window.quizWarsAnimations.attackAvatar(entry.avatar);
+                                }
                             });
                         }
+                    }
+
+                    if (data.game_over) {
+                        window.gameStatus = "lobby";
                     }
                 }
             })
@@ -490,6 +544,39 @@
         border-radius: 2px;
         background-color: white;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+
+    #phase-indicator {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        padding: 16px;
+        margin: 16px 0;
+        background-color: #333;
+        border: 2px solid #fff;
+        border-radius: 4px;
+        color: #fff;
+        font-family: monospace;
+    }
+
+    #phase-label {
+        font-size: 1.2rem;
+        font-weight: bold;
+        letter-spacing: 2px;
+    }
+
+    #phase-timer {
+        font-size: 2.5rem;
+        font-weight: bold;
+        font-family: 'Courier New', monospace;
+        color: #fff;
+        background-color: #000;
+        padding: 12px 20px;
+        border: 2px solid #fff;
+        border-radius: 4px;
+        min-width: 100px;
+        text-align: center;
     }
 
     #game-stage {

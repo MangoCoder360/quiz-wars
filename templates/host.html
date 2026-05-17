@@ -11,7 +11,7 @@
         <select name="question_set">
             <option value="" disabled selected>Select a question set</option>
             {% for set in question_sets %}
-                <option value="{{ set }}">{{ set }}</option>
+                <option value="{{ set.id }}">{{ set.displayName }}</option>
             {% endfor %}
         </select>
         <button>create game</button>

@@ -7,83 +7,569 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         {% raw %}
-        /* Styles limited to the in-game UI question area */
-        :root{--parchment:#f7efe0;--accent:#6b4423;--accent-2:#8b5a2b;--text:#231f20}
-        body{font-family:'Cormorant Garamond', serif;color:var(--text);background:transparent}
-        #ui-question{display:none}
-        #ui-question .question-panel{max-width:1100px;margin:12px auto;padding:14px;background:linear-gradient(180deg,#fbf6ea,#f6efe0);border:6px solid rgba(0,0,0,0.06);box-shadow:0 6px 14px rgba(0,0,0,0.08)}
-        #ui-question .question-title{font-family:'Cinzel', serif;text-align:center;font-size:26px;color:var(--accent-2);padding:10px 6px}
-        #ui-question .answers-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;margin-top:10px}
-        #ui-question .answer-tile{background:linear-gradient(180deg,#fffaf0,#f3ead6);padding:30px;border:3px solid rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
-        #ui-question .answer-tile:focus{outline:3px solid rgba(107,68,35,0.12)}
-        #ui-question .answer-tile:hover{transform:translateY(-4px);box-shadow:0 8px 20px rgba(0,0,0,0.12)}
-        #ui-question .answer-label{font-size:20px;color:var(--accent);font-weight:600}
-        @media (max-width:720px){#ui-question .answers-grid{grid-template-columns:1fr;grid-template-rows:repeat(4,auto)}#ui-question .answer-tile{padding:18px}}
+        :root {
+            --parchment: #f7efe0;
+            --parchment-2: #f3e5c8;
+            --accent: #6b4423;
+            --accent-2: #8b5a2b;
+            --text: #231f20;
+            --good: #2f7d32;
+            --bad: #9c2f2f;
+            --panel: rgba(255, 249, 236, 0.96);
+        }
+        body {
+            margin: 0;
+            font-family: 'Cormorant Garamond', serif;
+            background: radial-gradient(circle at top, #fff8eb 0, #f2e3c4 42%, #dcc79f 100%);
+            color: var(--text);
+        }
+        #game-shell {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .panel {
+            background: var(--panel);
+            border: 4px solid rgba(107, 68, 35, 0.18);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+            border-radius: 18px;
+            margin-bottom: 18px;
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 14px 18px;
+            background: linear-gradient(180deg, #f8eed9, #f2dfb8);
+            border-bottom: 1px solid rgba(107, 68, 35, 0.14);
+            font-family: 'Cinzel', serif;
+            color: var(--accent-2);
+        }
+        .panel-body {
+            padding: 18px;
+        }
+        #status-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .status-pill {
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(107, 68, 35, 0.08);
+            color: var(--accent);
+            font-weight: 700;
+        }
+        #question-title {
+            font-family: 'Cinzel', serif;
+            font-size: 28px;
+            line-height: 1.2;
+            text-align: center;
+            margin: 0 0 16px;
+            color: var(--accent-2);
+        }
+        #question-meta,
+        #round-results,
+        #game-over {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        #answer-grid,
+        #vote-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .tile-button {
+            appearance: none;
+            border: 3px solid rgba(107, 68, 35, 0.12);
+            background: linear-gradient(180deg, #fffaf0, #f3ead6);
+            color: var(--accent);
+            min-height: 92px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 20px;
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 700;
+            padding: 16px;
+            transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+        }
+        .tile-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+        }
+        .tile-button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        #game-message {
+            margin-top: 12px;
+            text-align: center;
+            font-size: 18px;
+            min-height: 24px;
+        }
+        #game-message.good { color: var(--good); }
+        #game-message.bad { color: var(--bad); }
+        #health-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .health-card {
+            background: rgba(255, 255, 255, 0.66);
+            border: 1px solid rgba(107, 68, 35, 0.12);
+            border-radius: 14px;
+            padding: 12px;
+        }
+        .health-card h3 {
+            margin: 0 0 8px;
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+        }
+        .health-bar {
+            height: 14px;
+            border-radius: 999px;
+            background: rgba(107, 68, 35, 0.12);
+            overflow: hidden;
+        }
+        .health-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.35s ease;
+            background: linear-gradient(90deg, #b53d3d, #5dbb63);
+        }
+        .health-note {
+            margin-top: 6px;
+            font-size: 16px;
+            min-height: 20px;
+        }
+        .hidden {
+            display: none !important;
+        }
+        @media (max-width: 760px) {
+            #answer-grid,
+            #vote-grid,
+            #health-summary {
+                grid-template-columns: 1fr;
+            }
+        }
         {% endraw %}
     </style>
 </head>
 <body>
-    <div id="ui-welcome">
-        <h1>Welcome to Quiz Wars!</h1>
-        <p>Get ready for an exciting quiz battle. The game will start shortly.</p>
-    </div>
-    <div id="ui-question" style="display:none;">
-        <div class="question-panel" role="region" aria-label="Question area">
-            <div class="question-title" id="question-text">Question</div>
+    <div id="game-shell">
+        <div id="lobby-view" class="panel">
+            <div class="panel-header">Waiting for game start</div>
+            <div class="panel-body" style="text-align:center; font-size: 22px;">
+                <div id="welcome-name">Welcome to Quiz Wars.</div>
+                <div id="welcome-avatar" style="margin-top:8px;">Your avatar will appear here when the game starts.</div>
+            </div>
+        </div>
 
-            <div class="answers-grid" role="list" aria-label="Answer choices">
-                <div class="answer-tile" id="answer-1" role="button" tabindex="0">
-                    <div class="answer-label">Answer A</div>
+        <div id="game-view" class="panel hidden">
+            <div class="panel-header">Battle Round</div>
+            <div class="panel-body">
+                <div id="status-row">
+                    <div class="status-pill" id="status-player">Player</div>
+                    <div class="status-pill" id="status-avatar">Avatar</div>
+                    <div class="status-pill" id="status-round">Round 0</div>
+                    <div class="status-pill" id="status-boss">Boss HP: 300</div>
+                    <div class="status-pill" id="status-timer">Time: 60s</div>
                 </div>
-                <div class="answer-tile" id="answer-2" role="button" tabindex="0">
-                    <div class="answer-label">Answer B</div>
+
+                <div id="question-stage">
+                    <h1 id="question-title">Question</h1>
+                    <div id="question-meta"></div>
+                    <div id="answer-grid"></div>
+                    <div id="game-message"></div>
                 </div>
-                <div class="answer-tile" id="answer-3" role="button" tabindex="0">
-                    <div class="answer-label">Answer C</div>
+
+                <div id="vote-stage" class="hidden">
+                    <h1 id="vote-title" style="font-family:'Cinzel', serif; text-align:center; color:var(--accent-2);">Vote for your avatar action</h1>
+                    <div id="vote-grid"></div>
                 </div>
-                <div class="answer-tile" id="answer-4" role="button" tabindex="0">
-                    <div class="answer-label">Answer D</div>
+
+                <div id="round-stage" class="hidden">
+                    <h1 id="round-results"></h1>
+                </div>
+
+                <div id="game-over" class="hidden"></div>
+
+                <div id="health-summary">
+                    <div class="health-card">
+                        <h3>Wizard</h3>
+                        <div class="health-bar"><div class="health-fill" id="wizard-hp-fill"></div></div>
+                        <div class="health-note" id="wizard-status">25 / 25</div>
+                    </div>
+                    <div class="health-card">
+                        <h3>Knight</h3>
+                        <div class="health-bar"><div class="health-fill" id="knight-hp-fill"></div></div>
+                        <div class="health-note" id="knight-status">40 / 40</div>
+                    </div>
+                    <div class="health-card">
+                        <h3>Monk</h3>
+                        <div class="health-bar"><div class="health-fill" id="monk-hp-fill"></div></div>
+                        <div class="health-note" id="monk-status">35 / 35</div>
+                    </div>
+                    <div class="health-card">
+                        <h3>Jonah</h3>
+                        <div class="health-bar"><div class="health-fill" id="boss-hp-fill"></div></div>
+                        <div class="health-note" id="boss-status">300 / 300</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <div id="ui-actions" style="display:none;"></div>
 </body>
 </html>
 <script>
-    function processPlayerData(playerData) {
-        if (playerData.player_status == "ingame") {
-            
+    const gameId = {{ game_id }};
+    const playerId = {{ player_id }};
+    const avatarActions = {
+        Wizard: ["Fire", "Ice", "Lightning", "Shield"],
+        Knight: ["Break", "Cleave", "Parry"],
+        Monk: ["Heal", "Enchant", "DoublePunch"],
+    };
+
+    const state = {
+        player: null,
+        question: null,
+        gameState: null,
+        assignedAvatar: null,
+        answeredCorrectly: false,
+        voteSubmitted: false,
+        roundHandled: false,
+        loadedQuestionIndex: null,
+        polling: true,
+    };
+
+    function setMessage(text, tone) {
+        const message = document.getElementById('game-message');
+        message.textContent = text || '';
+        message.className = tone || '';
+    }
+
+    function showView(isGameView) {
+        document.getElementById('lobby-view').classList.toggle('hidden', isGameView);
+        document.getElementById('game-view').classList.toggle('hidden', !isGameView);
+    }
+
+    function renderHealthCard(prefix, hp, maxHp, statusText) {
+        const fill = document.getElementById(`${prefix}-hp-fill`);
+        const note = document.getElementById(`${prefix}-status`);
+        if (fill) {
+            const maxValue = Math.max(Number(maxHp || 0), 1);
+            const currentValue = Math.max(Number(hp || 0), 0);
+            fill.style.width = `${Math.max(0, Math.min(100, (currentValue / maxValue) * 100))}%`;
+        }
+        if (note) {
+            note.textContent = statusText;
         }
     }
 
-    function pulse() {
-        fetch(`/game/{{ game_id }}/player/get-data/{{ player_id }}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+    function renderGameState(gameState) {
+        if (!gameState) return;
+        state.gameState = gameState;
+
+        const bossHp = Number(gameState.boss_hp ?? 300);
+        const bossMax = 300;
+        document.getElementById('status-boss').textContent = `Boss HP: ${Math.max(0, bossHp)} / ${bossMax}`;
+        renderHealthCard('boss', bossHp, bossMax, `${Math.max(0, bossHp)} / ${bossMax}`);
+
+        const avatarStates = gameState.avatar_states || {};
+        const wizard = avatarStates.Wizard || { hp: 25, status: [] };
+        const knight = avatarStates.Knight || { hp: 40, status: [] };
+        const monk = avatarStates.Monk || { hp: 35, status: [] };
+        renderHealthCard('wizard', wizard.hp, 25, `${Math.max(0, wizard.hp)} / 25${wizard.status && wizard.status.length ? ` • ${wizard.status.join(', ')}` : ''}`);
+        renderHealthCard('knight', knight.hp, 40, `${Math.max(0, knight.hp)} / 40${knight.status && knight.status.length ? ` • ${knight.status.join(', ')}` : ''}`);
+        renderHealthCard('monk', monk.hp, 35, `${Math.max(0, monk.hp)} / 35${monk.status && monk.status.length ? ` • ${monk.status.join(', ')}` : ''}`);
+
+        const roundIndex = (state.question && typeof state.question.question_index === 'number') ? state.question.question_index + 1 : (state.loadedQuestionIndex == null ? 0 : state.loadedQuestionIndex + 1);
+        document.getElementById('status-round').textContent = `Round ${roundIndex}`;
+        document.getElementById('status-avatar').textContent = `Avatar: ${state.assignedAvatar || 'Unknown'}`;
+
+        // Update countdown timer
+        const currentPhase = gameState.current_phase || 'answer';
+        const timerEl = document.getElementById('status-timer');
+        
+        // Debug: log the values we're receiving
+        if (!window.timerDebugLogged) {
+            console.log('Timer Debug - gameState keys:', Object.keys(gameState));
+            console.log('Timer Debug - server_time:', gameState.server_time);
+            console.log('Timer Debug - answer_phase_started_at:', gameState.answer_phase_started_at);
+            console.log('Timer Debug - vote_phase_started_at:', gameState.vote_phase_started_at);
+            console.log('Timer Debug - current_phase:', gameState.current_phase);
+            console.log('Timer Debug - answer_timeout_seconds:', gameState.answer_timeout_seconds);
+            console.log('Timer Debug - vote_timeout_seconds:', gameState.vote_timeout_seconds);
+            window.timerDebugLogged = true;
+        }
+        
+        if (gameState.server_time != null && gameState.answer_phase_started_at != null) {
+            let timeRemaining = 0;
+            
+            if (currentPhase === 'answer') {
+                const answerTimeout = gameState.answer_timeout_seconds || 60;
+                const serverElapsed = gameState.server_time - gameState.answer_phase_started_at;
+                timeRemaining = Math.max(0, Math.ceil(answerTimeout - serverElapsed));
+                console.log(`ANSWER: timeout=${answerTimeout}, elapsed=${serverElapsed.toFixed(2)}, remaining=${timeRemaining}`);
+            } else if (currentPhase === 'vote' && gameState.vote_phase_started_at != null) {
+                const voteTimeout = gameState.vote_timeout_seconds || 30;
+                const serverElapsed = gameState.server_time - gameState.vote_phase_started_at;
+                timeRemaining = Math.max(0, Math.ceil(voteTimeout - serverElapsed));
+                console.log(`VOTE: timeout=${voteTimeout}, elapsed=${serverElapsed.toFixed(2)}, remaining=${timeRemaining}`);
+            }
+            
+            if (timerEl) {
+                timerEl.textContent = `Time: ${timeRemaining}s`;
+                if (timeRemaining <= 10) {
+                    timerEl.style.color = '#ff4444';
+                    timerEl.style.fontWeight = 'bold';
+                } else {
+                    timerEl.style.color = 'inherit';
+                    timerEl.style.fontWeight = 'normal';
                 }
-                return response.json();
-            })
-            .then(data => {
-                if (data.player_status == "starting") {
-                    document.getElementById("ui-welcome").style.display = "block";
-                    document.getElementById("ui-question").style.display = "none";
-                    document.getElementById("ui-actions").style.display = "none";
-                } else if (data.player_status == "ingame") {
-                    document.getElementById("ui-welcome").style.display = "none";
-                    processPlayerData(data);
-                } else if (data.player_status == "kicked") {
-                    alert("You have been removed from the game by the host.");
-                    window.location.href = "/";
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching player status:', error);
-            });
+            }
+        } else {
+            console.warn('Timer missing data - server_time:', gameState.server_time, 'answer_phase_started_at:', gameState.answer_phase_started_at);
+            if (timerEl) {
+                timerEl.textContent = 'Time: --s';
+            }
+        }
+
+        if (gameState.game_over) {
+            state.polling = false;
+            document.getElementById('game-over').classList.remove('hidden');
+            document.getElementById('game-over').textContent = 'Game over. Check the host screen for the final outcome.';
+        }
     }
 
-    setInterval(() => {
-        pulse();
-    }, 1000);
+    function renderQuestion(questionPayload) {
+        if (!questionPayload) return;
+        state.question = questionPayload;
+        state.loadedQuestionIndex = questionPayload.question_index;
+        state.answeredCorrectly = false;
+        state.voteSubmitted = false;
+        state.roundHandled = false;
+        setMessage('', '');
+
+        document.getElementById('question-title').textContent = questionPayload.question;
+        document.getElementById('question-meta').textContent = `Question ${questionPayload.question_index + 1} of ${questionPayload.total_questions}`;
+
+        const answerGrid = document.getElementById('answer-grid');
+        answerGrid.innerHTML = '';
+        questionPayload.options.forEach((optionText, index) => {
+            const button = document.createElement('button');
+            button.className = 'tile-button';
+            button.textContent = optionText;
+            button.onclick = () => submitAnswer(index);
+            answerGrid.appendChild(button);
+        });
+
+        document.getElementById('question-stage').classList.remove('hidden');
+        document.getElementById('vote-stage').classList.add('hidden');
+        document.getElementById('round-stage').classList.add('hidden');
+        document.getElementById('game-over').classList.add('hidden');
+    }
+
+    function renderVoteActions() {
+        const voteStage = document.getElementById('vote-stage');
+        const voteGrid = document.getElementById('vote-grid');
+        const avatar = state.assignedAvatar;
+        const actions = avatarActions[avatar] || [];
+
+        voteGrid.innerHTML = '';
+        actions.forEach(action => {
+            const button = document.createElement('button');
+            button.className = 'tile-button';
+            button.textContent = action;
+            button.onclick = () => submitVote(action);
+            voteGrid.appendChild(button);
+        });
+
+        voteStage.classList.remove('hidden');
+    }
+
+    async function submitAnswer(optionIndex) {
+        const buttons = Array.from(document.querySelectorAll('#answer-grid button'));
+        buttons.forEach(button => button.disabled = true);
+        setMessage('Checking answer...', '');
+
+        try {
+            const response = await fetch(`/game/${gameId}/answer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ player_id: playerId, option_index: optionIndex }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to submit answer');
+            }
+
+            state.answeredCorrectly = Boolean(data.correct);
+            if (data.correct) {
+                setMessage('Correct. You can vote for your avatar action.', 'good');
+                renderVoteActions();
+            } else {
+                setMessage('Incorrect. Wait for the round to resolve.', 'bad');
+                document.getElementById('vote-stage').classList.add('hidden');
+            }
+        } catch (error) {
+            setMessage(error.message, 'bad');
+            buttons.forEach(button => button.disabled = false);
+        }
+    }
+
+    async function submitVote(action) {
+        if (state.voteSubmitted) return;
+        state.voteSubmitted = true;
+
+        const buttons = Array.from(document.querySelectorAll('#vote-grid button'));
+        buttons.forEach(button => button.disabled = true);
+        setMessage(`Vote submitted: ${action}`, 'good');
+
+        try {
+            const response = await fetch(`/game/${gameId}/vote`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    player_id: playerId,
+                    avatar: state.assignedAvatar,
+                    action,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to submit vote');
+            }
+        } catch (error) {
+            state.voteSubmitted = false;
+            setMessage(error.message, 'bad');
+            buttons.forEach(button => button.disabled = false);
+        }
+    }
+
+    async function handleRoundResolution(roundResults) {
+        if (!roundResults || state.roundHandled) return;
+        state.roundHandled = true;
+
+        const actionMessages = [];
+        (roundResults.actions || []).forEach(action => {
+            if (action && action.avatar && action.action) {
+                actionMessages.push(`${action.avatar} used ${action.action}${action.damage ? ` for ${action.damage} damage` : ''}`);
+            }
+        });
+        (roundResults.boss_attacks || []).forEach(attack => {
+            if (attack && attack.message) {
+                actionMessages.push(attack.message);
+            }
+        });
+
+        document.getElementById('question-stage').classList.add('hidden');
+        document.getElementById('vote-stage').classList.add('hidden');
+        document.getElementById('round-stage').classList.remove('hidden');
+        document.getElementById('round-results').textContent = actionMessages.length ? actionMessages.join(' • ') : 'Round resolved.';
+        if (state.gameState) {
+            renderGameState(state.gameState);
+        }
+
+        window.setTimeout(async () => {
+            try {
+                const response = await fetch(`/game/${gameId}/next-question`);
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to advance to the next question');
+                }
+
+                if (data.game_over) {
+                    state.polling = false;
+                    document.getElementById('game-over').classList.remove('hidden');
+                    document.getElementById('game-over').textContent = data.outcome === 'WIN' ? 'Victory! The boss was defeated.' : 'Defeat. The team ran out of questions or avatars fell.';
+                    return;
+                }
+
+                if (data.game_state) {
+                    renderGameState(data.game_state);
+                }
+                if (data.question) {
+                    renderQuestion(data.question);
+                    document.getElementById('question-stage').classList.remove('hidden');
+                }
+            } catch (error) {
+                setMessage(error.message, 'bad');
+                state.roundHandled = false;
+            }
+        }, 1800);
+    }
+
+    async function loadCurrentQuestion() {
+        try {
+            const response = await fetch(`/game/${gameId}/question`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to load question');
+            }
+
+            if (data.game_state) {
+                renderGameState(data.game_state);
+            }
+            if (data.question) {
+                const nextIndex = data.question.question_index;
+                if (state.loadedQuestionIndex !== nextIndex) {
+                    renderQuestion(data.question);
+                }
+            }
+        } catch (error) {
+            setMessage(error.message, 'bad');
+        }
+    }
+
+    async function pollPlayerStatus() {
+        if (!state.polling) return;
+
+        try {
+            const response = await fetch(`/game/${gameId}/player/get-data/${playerId}`);
+            const playerData = await response.json();
+            if (!response.ok) {
+                throw new Error(playerData.error || 'Failed to fetch player status');
+            }
+
+            state.player = playerData;
+            state.assignedAvatar = playerData.assigned_avatar || state.assignedAvatar;
+            document.getElementById('status-player').textContent = `Player: ${playerData.name || 'Unknown'}`;
+            document.getElementById('welcome-name').textContent = `Welcome, ${playerData.name || 'player'}.`;
+            document.getElementById('welcome-avatar').textContent = `Avatar: ${state.assignedAvatar || 'Pending'}`;
+
+            if (playerData.player_status === 'kicked') {
+                alert('You have been removed from the game by the host.');
+                window.location.href = '/';
+                return;
+            }
+
+            if (playerData.player_status === 'lobby') {
+                showView(false);
+                return;
+            }
+
+            showView(true);
+            await loadCurrentQuestion();
+
+            const stateResponse = await fetch(`/game/state/${gameId}`);
+            const gameState = await stateResponse.json();
+            if (stateResponse.ok) {
+                renderGameState(gameState);
+                if (gameState.round_results && !state.roundHandled) {
+                    await handleRoundResolution(gameState.round_results);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching player/game state:', error);
+        }
+    }
+
+    pollPlayerStatus();
+    setInterval(pollPlayerStatus, 1000);
 </script>

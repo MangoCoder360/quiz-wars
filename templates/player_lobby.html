@@ -261,6 +261,8 @@
 </body>
 </html>
 <script>
+    window.redirectScheduled = false;
+
     function statusCheck() {
         fetch(`/game/{{ game_id }}/player/get-data/{{ player_id }}`)
             .then(response => {
@@ -283,13 +285,16 @@
                     document.getElementById('leave-ui').style.display = 'block';
                 }
 
-                if (playerData.player_status == "starting") {
+                if (playerData.player_status == "ingame") {
                     document.getElementById('status-pill-text').textContent = 'Game is starting...';
                     document.getElementById('pill-dot').style.background = '#78f1a1';
 
-                    setTimeout(() => {
-                        document.location.href = `/game/{{ game_id }}/p/{{ player_id }}/play`;
-                    }, 2000);
+                    if (!window.redirectScheduled) {
+                        window.redirectScheduled = true;
+                        setTimeout(() => {
+                            document.location.href = `/game/{{ game_id }}/p/{{ player_id }}/play`;
+                        }, 2000);
+                    }
                 }
 
                 if (playerData.player_status == "lobby") {
