@@ -386,7 +386,7 @@
             Parry: 'Prepare to parry and reduce redirected damage.',
         },
         Monk: {
-            Heal: 'Restore HP to the Monk.',
+            Heal: 'Heal Monk for 10, heal allies for 5, and revive downed allies to 5.',
             Enchant: 'Buff next attack with bonus damage.',
             DoublePunch: 'Two fast hits for strong total damage.',
         },
@@ -471,6 +471,8 @@
                 line2.textContent = 'Voted action was on cooldown, so the game picked a different legal action.';
             } else if (voteDetail.selection_reason === 'no_votes_random') {
                 line2.textContent = 'No votes were recorded for this avatar, so a random action was chosen.';
+            } else if (voteDetail.selection_reason === 'dead_avatar_skipped') {
+                line2.textContent = 'This avatar is down and could not act this round.';
             }
         } else {
             line2.textContent = 'No vote details were available for this avatar.';
@@ -682,6 +684,14 @@
         const avatar = state.assignedAvatar;
         const actions = avatarActions[avatar] || [];
         const cooldownAction = state.action_cooldowns && state.action_cooldowns[avatar];
+        const avatarHp = Number(state.gameState?.avatar_states?.[avatar]?.hp ?? 0);
+
+        if (avatarHp <= 0) {
+            voteGrid.innerHTML = '';
+            setMessage('Your avatar is down and cannot act this round.', 'bad');
+            voteStage.classList.remove('hidden');
+            return;
+        }
 
         voteGrid.innerHTML = '';
         actions.forEach(action => {

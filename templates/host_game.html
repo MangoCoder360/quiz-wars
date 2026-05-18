@@ -13,10 +13,17 @@
         <div class="ui">
             <button onclick="startGame()">Start Game</button>
             <button onclick="enterFullscreen()">Fullscreen</button>
+            <button id="toggle-music-btn" onclick="toggleLobbyMusic()" aria-pressed="false">Play Music</button>
             <h1>Join at {{ GAME_URL }}</h1>
             <h1 id="game-id-large">{{ game_id }}</h1>
             <div id="players"></div>
         </div>
+        <!-- Lobby music element (looped). Autoplay may be blocked by browser; toggle provided. -->
+        <audio id="lobby-music" src="/static/WaitMusic.mp3" loop preload="auto"></audio>
+        <!-- Phase music elements -->
+        <audio id="question-music" src="/static/QuestionMusic.mp3" loop preload="auto"></audio>
+        <audio id="voting-music" src="/static/VotingMusic.mp3" preload="auto"></audio>
+        <audio id="gameover-music" src="/static/GameOverMusic.mp3" loop preload="auto"></audio>
     </div>
     <div id="game-ui">
         <div id="bossbars">
@@ -254,6 +261,108 @@
 
     // bootstrapQuizWarsAnimations();
 
+    // Lobby music control helpers
+    window.lobbyMusicPlaying = false;
+    function updateMusicBtn() {
+        const btn = document.getElementById('toggle-music-btn');
+        if (!btn) return;
+        btn.textContent = window.lobbyMusicPlaying ? 'Stop Music' : 'Play Music';
+        btn.setAttribute('aria-pressed', window.lobbyMusicPlaying ? 'true' : 'false');
+    }
+
+    function playLobbyMusic() {
+        const audio = document.getElementById('lobby-music');
+        if (!audio) return;
+        const promise = audio.play();
+        if (promise && typeof promise.then === 'function') {
+            promise.then(() => {
+                window.lobbyMusicPlaying = true;
+                updateMusicBtn();
+            }).catch(err => {
+                // Autoplay blocked or other error; leave button for manual start
+                console.warn('Lobby music play blocked:', err);
+                window.lobbyMusicPlaying = false;
+                updateMusicBtn();
+            });
+        } else {
+            window.lobbyMusicPlaying = true;
+            updateMusicBtn();
+        }
+    }
+
+    function stopLobbyMusic() {
+        const audio = document.getElementById('lobby-music');
+        if (!audio) return;
+        try {
+            audio.pause();
+            audio.currentTime = 0;
+        } catch (e) {
+            console.warn('Error stopping lobby music', e);
+        }
+        window.lobbyMusicPlaying = false;
+        updateMusicBtn();
+    }
+
+    function toggleLobbyMusic() {
+        if (window.lobbyMusicPlaying) {
+            stopLobbyMusic();
+        } else {
+            playLobbyMusic();
+        }
+    }
+
+    // Phase music controls
+    window.lastMusicPhase = null; // 'lobby' | 'question' | 'vote' | 'gameover' | null
+
+    function stopAllPhaseMusic() {
+        try { stopLobbyMusic(); } catch(e){}
+        try { const q = document.getElementById('question-music'); if (q) { q.pause(); q.currentTime = 0; } } catch(e){}
+        try { const v = document.getElementById('voting-music'); if (v) { v.pause(); v.currentTime = 0; } } catch(e){}
+        try { const g = document.getElementById('gameover-music'); if (g) { g.pause(); g.currentTime = 0; } } catch(e){}
+        window.lastMusicPhase = null;
+        updateMusicBtn();
+    }
+
+    function playQuestionMusic() {
+        stopAllPhaseMusic();
+        const audio = document.getElementById('question-music');
+        if (!audio) return;
+        audio.loop = true;
+        const p = audio.play();
+        if (p && typeof p.then === 'function') {
+            p.then(() => { window.lastMusicPhase = 'question'; }).catch(() => { window.lastMusicPhase = null; });
+        } else {
+            window.lastMusicPhase = 'question';
+        }
+    }
+
+    function playVotingMusicOnce() {
+        stopAllPhaseMusic();
+        const audio = document.getElementById('voting-music');
+        if (!audio) return;
+        audio.loop = false;
+        audio.currentTime = 0;
+        const p = audio.play();
+        if (p && typeof p.then === 'function') {
+            p.then(() => { window.lastMusicPhase = 'vote'; }).catch(() => { window.lastMusicPhase = null; });
+        } else {
+            window.lastMusicPhase = 'vote';
+        }
+    }
+
+    function playGameOverMusic() {
+        stopAllPhaseMusic();
+        const audio = document.getElementById('gameover-music');
+        if (!audio) return;
+        audio.loop = true;
+        const p = audio.play();
+        if (p && typeof p.then === 'function') {
+            p.then(() => { window.lastMusicPhase = 'gameover'; }).catch(() => { window.lastMusicPhase = null; });
+        } else {
+            window.lastMusicPhase = 'gameover';
+        }
+    }
+
     function tick() {
         if (window.gameStatus == "lobby") {
             getPlayersInLobby();
@@ -281,7 +390,10 @@
 
                     const playerBox = document.createElement('div');
                     playerBox.className = 'player-box';
-                    playerBox.innerHTML = `<p>${player.name}</p>`;
+                    // Use textContent to avoid XSS from player-provided names
+                    const nameEl = document.createElement('p');
+                    nameEl.textContent = player.name;
+                    playerBox.appendChild(nameEl);
                     playerBox.onclick = () => {
                         let confirmation = confirm(`Kick ${player.name} from the lobby?`);
                         if (confirmation) {
@@ -303,6 +415,8 @@
 
     function startGame() {
         getPlayersInLobby(); // Final refresh to ensure we have the latest player list before starting
+        // Stop any lobby/phase music when the game starts
+        stopAllPhaseMusic();
         window.gameStatus = "in-progress";
         window.endOverlayShown = false;
 
@@ -332,8 +446,17 @@
             .then(data => {
                 if (data.game_status == "in-progress") {
                     window.gameStatus = "in-progress";
+                        // Stop any phase music when server shows game started
+                        stopAllPhaseMusic();
                     document.getElementById('waiting-room').style.display = 'none';
                     document.getElementById('game-ui').style.display = 'block';
+                } else {
+                    // Still in lobby on server — try to play lobby music (may be blocked until user interacts)
+                    try {
+                        playLobbyMusic();
+                    } catch (e) {
+                        // ignore
+                    }
                 }
             })
             .catch(error => console.error('Error checking game status:', error));
@@ -356,6 +479,8 @@
             : 'The team has fallen. Regroup and try again.';
 
         overlay.classList.remove('hidden');
+        // Play game over music while overlay is shown
+        try { playGameOverMusic(); } catch (e) { console.warn('Game over music play failed', e); }
         window.endOverlayShown = true;
     }
 
@@ -467,6 +592,21 @@
                     updateBarByName('Monk', avatarStates.Monk?.hp ?? avatarMaxHealth.Monk ?? 35, avatarMaxHealth.Monk ?? 35);
 
                     const updateStatusByName = (name, statuses) => {
+                        const statusEl = document.querySelector(`.avatar-status[data-avatar-status="${String(name).replace(/"/g, '\\"')}"]`);
+                        if (!statusEl) return;
+                        
+                        statusEl.innerHTML = '';
+                        
+                        // Check if avatar is dead
+                        const avatarHp = avatarStates[name]?.hp ?? 0;
+                        if (avatarHp <= 0) {
+                            const chip = document.createElement('span');
+                            chip.className = 'avatar-status-chip is-dead';
+                            chip.textContent = 'Dead';
+                            statusEl.appendChild(chip);
+                            return;
+                        }
+                        
                         const normalizedStatuses = Array.isArray(statuses) ? statuses.filter(Boolean) : [];
                         const statusClassMap = {
                             Enchanted: 'is-enchanted',
@@ -476,24 +616,21 @@
                             Shocked: 'is-shocked',
                             Weakened: 'is-weakened',
                         };
-                        const statusEl = document.querySelector(`.avatar-status[data-avatar-status="${String(name).replace(/"/g, '\\"')}"]`);
-                        if (statusEl) {
-                            statusEl.innerHTML = '';
-                            if (normalizedStatuses.length === 0) {
-                                const chip = document.createElement('span');
-                                chip.className = 'avatar-status-chip is-muted';
-                                chip.textContent = 'No status';
-                                statusEl.appendChild(chip);
-                                return;
-                            }
-
-                            normalizedStatuses.forEach(status => {
-                                const chip = document.createElement('span');
-                                chip.className = `avatar-status-chip ${statusClassMap[status] || ''}`.trim();
-                                chip.textContent = status;
-                                statusEl.appendChild(chip);
-                            });
+                        
+                        if (normalizedStatuses.length === 0) {
+                            const chip = document.createElement('span');
+                            chip.className = 'avatar-status-chip is-muted';
+                            chip.textContent = 'No status';
+                            statusEl.appendChild(chip);
+                            return;
                         }
+
+                        normalizedStatuses.forEach(status => {
+                            const chip = document.createElement('span');
+                            chip.className = `avatar-status-chip ${statusClassMap[status] || ''}`.trim();
+                            chip.textContent = status;
+                            statusEl.appendChild(chip);
+                        });
                     };
 
                     updateStatusByName('Wizard', avatarStates.Wizard?.status ?? []);
@@ -538,6 +675,28 @@
                             phaseTimer.textContent = '--s';
                             phaseTimer.style.color = '#ccc';
                         }
+                    }
+
+                    // Phase-based music control
+                    try {
+                        if (data.game_over) {
+                            if (window.lastMusicPhase !== 'gameover') {
+                                playGameOverMusic();
+                            }
+                        } else {
+                            if (currentPhase === 'answer') {
+                                if (window.lastMusicPhase !== 'question') {
+                                    playQuestionMusic();
+                                }
+                            } else if (currentPhase === 'vote') {
+                                if (window.lastMusicPhase !== 'vote') {
+                                    playVotingMusicOnce();
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // swallow music errors
+                        console.warn('Music control error', e);
                     }
 
                     const signature = JSON.stringify(data.round_results || {});
@@ -722,6 +881,7 @@
     .avatar-status-chip.is-muted {
         opacity: 0.72;
     }
+    .avatar-status-chip.is-dead { background: #2a2a2a; color: #ffffff; font-weight: bold; }
     .avatar-status-chip.is-enchanted { background: #f0e2ff; color: #6a2ca0; }
     .avatar-status-chip.is-shielded { background: #e1f0ff; color: #1f5ea8; }
     .avatar-status-chip.is-parrying { background: #ffe9d9; color: #9b4b11; }

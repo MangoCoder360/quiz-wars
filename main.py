@@ -189,6 +189,12 @@ def _get_player_by_id(game_data, player_id):
     return None
 
 
+def _is_avatar_alive(game_data, avatar_name):
+    if not avatar_name:
+        return False
+    return game_data.get("avatar_states", {}).get(avatar_name, {}).get("hp", 0) > 0
+
+
 def _get_game_lock(game_id):
     lock = game_locks.get(game_id)
     if lock is None:
@@ -287,10 +293,16 @@ def _maybe_resolve_round(game_data):
     players_answered = game_data.get("players_answered", set())
     eligible_voters = game_data.get("eligible_voters", set())
     votes_cast = game_data.get("votes_cast", set())
+
+    # Dead avatars do not participate in answer/vote flow.
+    alive_player_ids = {
+        p.get("id") for p in players
+        if p.get("player_status") == "ingame" and _is_avatar_alive(game_data, p.get("assigned_avatar"))
+    }
     
     # Check if answer phase should end (all players answered or answer timeout)
     answer_phase_elapsed = current_time - answer_phase_started_at
-    all_answered = len(players_answered) >= len(players) if players else False
+    all_answered = alive_player_ids.issubset(players_answered) if alive_player_ids else True
     
     current_phase = game_data.get("current_phase", "answer")
     
@@ -700,8 +712,6 @@ def apply_action_damage(game_data, avatar_name, action):
     Returns a dict with action result: {action, damage, status_applied}
     """
     boss = game_data["boss_state"]
-    avatar_hp = game_data["avatar_states"][avatar_name]["hp"]
-    
     result = {
         "avatar": avatar_name,
         "action": action,
@@ -762,13 +772,31 @@ def apply_action_damage(game_data, avatar_name, action):
     
     elif avatar_name == "Monk":
         if action == "Heal":
-            # Heal restores 10 HP to the avatar (for now, heal self)
-            heal_amount = 10
-            old_hp = game_data["avatar_states"][avatar_name]["hp"]
-            max_hp = game_data.get("avatar_max_health", {}).get(avatar_name, 35)
-            game_data["avatar_states"][avatar_name]["hp"] = min(max_hp, old_hp + heal_amount)
-            actual_heal = game_data["avatar_states"][avatar_name]["hp"] - old_hp
-            result["status_applied"].append(f"{avatar_name} healed {actual_heal} HP!")
+            # Monk self-heals for 10; all allies heal for 5, including revives to 5.
+            avatar_max_health = game_data.get("avatar_max_health", {})
+            for target_avatar in ["Wizard", "Knight", "Monk"]:
+                old_hp = game_data["avatar_states"][target_avatar]["hp"]
+                max_hp = avatar_max_health.get(target_avatar, AVATAR_MAX_HEALTH.get(target_avatar, 35))
+
+                if target_avatar == "Monk":
+                    heal_amount = 10
+                else:
+                    heal_amount = 5
+
+                if old_hp <= 0 and target_avatar != "Monk":
+                    new_hp = min(max_hp, heal_amount)
+                    game_data["avatar_states"][target_avatar]["hp"] = new_hp
+                    result["status_applied"].append(f"{target_avatar} was revived to {new_hp} HP!")
+                    continue
+
+                if old_hp <= 0:
+                    # Dead avatars do not receive standard healing unless explicitly revived.
+                    continue
+
+                game_data["avatar_states"][target_avatar]["hp"] = min(max_hp, old_hp + heal_amount)
+                actual_heal = game_data["avatar_states"][target_avatar]["hp"] - old_hp
+                if actual_heal > 0:
+                    result["status_applied"].append(f"{target_avatar} healed {actual_heal} HP!")
         elif action == "Enchant":
             # Enchant buffs this avatar's next attack
             if "Enchanted" not in game_data["avatar_states"][avatar_name]["status"]:
@@ -813,6 +841,11 @@ def resolve_round(game_data):
             "selection_reason": None,
             "cooldown_before": game_data["action_cooldowns"][avatar_name],
         }
+
+        if not _is_avatar_alive(game_data, avatar_name):
+            vote_detail["selection_reason"] = "dead_avatar_skipped"
+            round_results["vote_details"][avatar_name] = vote_detail
+            continue
         
         if not avatar_votes:
             # No votes for this avatar; pick random action
@@ -995,9 +1028,12 @@ def submit_answer(game_id):
             return {"error": "Invalid option_index"}, 400
         
         # Check player exists
-        players = game_data.get("players", [])
-        if player_id < 0 or player_id >= len(players):
+        player = _get_player_by_id(game_data, player_id)
+        if not player:
             return {"error": "Player not found"}, 404
+
+        if not _is_avatar_alive(game_data, player.get("assigned_avatar")):
+            return {"error": "Your avatar is down and cannot act this round"}, 403
         
         current_idx = game_data["current_question_index"]
         questions = game_data["questions_data"]
@@ -1052,6 +1088,9 @@ def submit_vote(game_id):
         
         if player["assigned_avatar"] != avatar:
             return {"error": "Player is not on that avatar team"}, 400
+
+        if not _is_avatar_alive(game_data, avatar):
+            return {"error": "Your avatar is down and cannot act this round"}, 403
 
         if player_id not in game_data.get("eligible_voters", set()):
             return {"error": "Player is not eligible to vote this round"}, 403

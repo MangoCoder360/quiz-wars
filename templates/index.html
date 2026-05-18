@@ -10,34 +10,39 @@
     <title>Quiz Wars</title>
 </head>
 <body>
-    <div class="title">
-        <h3>Welcome to</h3>
-        <!-- <h1>Quiz Wars</h1> -->
-        <img class="logo" src="/static/quizWarsTitle.png" alt="Quiz Wars Logo">
-        <br><br><br>
+    <div class="content">
+        <div class="title">
+            <h3 class="title-text">Welcome to</h3>
+            <!-- <h1>Quiz Wars</h1> -->
+            <img class="logo" src="/static/quizWarsTitle.png" alt="Quiz Wars Logo">
+            <br><br><br>
+        </div>
+        <form method="POST" action="/join-game">
+            <h3>{{ error_msg }}</h3>
+            <input type="text" name="player_name" placeholder="Enter your name" maxlength="20" required>
+            <input oninput="validateId()" id="gameId" type="number" name="game_id" placeholder="Enter game ID" required>
+            <button>join game</button>
+        </form>
     </div>
-    <form method="POST" action="/join-game">
-        <h3>{{ error_msg }}</h3>
-        <input type="text" name="player_name" placeholder="Enter your name" required>
-        <input oninput="validateId()" id="gameId" type="number" name="game_id" placeholder="Enter game ID" required>
-        <button>join game</button>
-    </form>
+    <footer>
+        <p><strong>Copyright &copy; 2026</strong><br><br>Programming by Reuben Schiopu<br>Artwork and game design by Jonah Mayer<br>Question sets and design assistance by Nate Stockhaus</p>
+    </footer>
 </body>
 </html>
 <style>
     /* Full-page setup so the animated background fills the screen */
     html, body {
-        height: 100%;
         margin: 0;
-
         color: white;
         /* temp until real bg added */
-
         image-rendering: pixelated;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
     }
 
     .logo {
-        width: 30%;
+        width: 25vw;
     }
 
     body {
@@ -59,7 +64,93 @@
 
     .title {
         font-size: 5em;
-        line-height: 0.1;
+        line-height: 0em;
+        margin: 0;
+        padding: 0;
+    }
+
+    .title-text {
+        line-height: 0em;
+        margin-bottom: 30px;
+        padding: 5px;
+    }
+ 
+    form h3 {
+        margin: 0;
+        min-height: 1.5rem;
+        color: #ff6b6b;
+        font-size: 1rem;
+    }
+
+    input {
+        padding: 0.75rem 1rem;
+        font-family: "VT323", monospace;
+        font-size: 1.1rem;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        width: 250px;
+        transition: all 0.3s ease;
+    }
+
+    input::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+    }
+
+    input:focus {
+        outline: none;
+        border-color: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+    }
+
+    button {
+        padding: 0.75rem 2rem;
+        font-family: "VT323", monospace;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 0.5rem;
+    }
+
+    button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+
+    button:active {
+        transform: translateY(0);
+    }
+
+    .content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    footer {
+        background: rgba(0, 0, 0, 0.45);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 1rem;
+        text-align: center;
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.7);
+        font-family: monospace;
+    }
+
+    footer p {
+        margin: 0;
     }
 </style>
 <script>
