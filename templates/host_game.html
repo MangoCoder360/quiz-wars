@@ -8,7 +8,7 @@
 <body onload="checkGameStatus()">
     <div id="waiting-room">
         <div class="title">
-            <h1>[QUIZ WARS LOGO HERE]</h1>
+            <img src="/static/quizWarsTitle.png" alt="Quiz Wars" style="max-width: 100%; height: auto; display: block;">
         </div>
         <div class="ui">
             <button onclick="startGame()">Start Game</button>
@@ -21,27 +21,36 @@
         <div id="bossbars">
             <div id="avatar-health">
                 <div class="avatar-bossbar">
-                    <h1>Wizard</h1>
+                    <div class="avatar-meta">
+                        <h1>Wizard</h1>
+                        <div class="avatar-status" data-avatar-status="Wizard">No status</div>
+                    </div>
                     <input type="range" value="25" max="25" class="boss-range" disabled>
                 </div>
                 <div class="avatar-bossbar">
-                    <h1>Knight</h1>
+                    <div class="avatar-meta">
+                        <h1>Knight</h1>
+                        <div class="avatar-status" data-avatar-status="Knight">No status</div>
+                    </div>
                     <input type="range" value="40" max="40" class="boss-range" disabled>
                 </div>
                 <div class="avatar-bossbar">
-                    <h1>Monk</h1>
+                    <div class="avatar-meta">
+                        <h1>Monk</h1>
+                        <div class="avatar-status" data-avatar-status="Monk">No status</div>
+                    </div>
                     <input type="range" value="35" max="35" class="boss-range" disabled>
                 </div>
+            </div>
+            <div id="phase-indicator">
+                <div id="phase-label">ANSWER PHASE</div>
+                <div id="phase-timer">60s</div>
             </div>
             <div id="boss-health">
                 <h1>Jonah</h1>
                 <input type="range" id="boss-health-bar" value="300" max="300" class="boss-range" disabled>
                 <div id="boss-health-value">300 / 300</div>
             </div>
-        </div>
-        <div id="phase-indicator">
-            <div id="phase-label">ANSWER PHASE</div>
-            <div id="phase-timer">60s</div>
         </div>
         <div id="game-stage">
             <div id="avatar-row">
@@ -349,6 +358,40 @@
                     updateBarByName('Knight', avatarStates.Knight?.hp ?? 40, 40);
                     updateBarByName('Monk', avatarStates.Monk?.hp ?? 35, 35);
 
+                    const updateStatusByName = (name, statuses) => {
+                        const normalizedStatuses = Array.isArray(statuses) ? statuses.filter(Boolean) : [];
+                        const statusClassMap = {
+                            Enchanted: 'is-enchanted',
+                            Shielded: 'is-shielded',
+                            Parrying: 'is-parrying',
+                            Frozen: 'is-frozen',
+                            Shocked: 'is-shocked',
+                            Weakened: 'is-weakened',
+                        };
+                        const statusEl = document.querySelector(`.avatar-status[data-avatar-status="${String(name).replace(/"/g, '\\"')}"]`);
+                        if (statusEl) {
+                            statusEl.innerHTML = '';
+                            if (normalizedStatuses.length === 0) {
+                                const chip = document.createElement('span');
+                                chip.className = 'avatar-status-chip is-muted';
+                                chip.textContent = 'No status';
+                                statusEl.appendChild(chip);
+                                return;
+                            }
+
+                            normalizedStatuses.forEach(status => {
+                                const chip = document.createElement('span');
+                                chip.className = `avatar-status-chip ${statusClassMap[status] || ''}`.trim();
+                                chip.textContent = status;
+                                statusEl.appendChild(chip);
+                            });
+                        }
+                    };
+
+                    updateStatusByName('Wizard', avatarStates.Wizard?.status ?? []);
+                    updateStatusByName('Knight', avatarStates.Knight?.status ?? []);
+                    updateStatusByName('Monk', avatarStates.Monk?.status ?? []);
+
                     // Update countdown timer - always try to update even if data missing
                     const currentPhase = data.current_phase || 'answer';
                     const phaseLabel = document.getElementById('phase-label');
@@ -415,7 +458,7 @@
         margin: 0;
         padding: 0;
         font-family: monospace;
-        background-color: #f0f0f0;
+        background: radial-gradient(circle at top, #faf6ef 0%, #eee1c9 45%, #d9c29a 100%);
 
         image-rendering: pixelated;
     }
@@ -460,6 +503,8 @@
     #game-ui {
         display: none;
         padding: 20px;
+        max-width: 1600px;
+        margin: 0 auto;
     }
     #bossbars {
         display: flex;
@@ -468,17 +513,18 @@
         width: 100%;
         min-height: 25vh;
         box-sizing: border-box;
+        gap: 20px;
     }
     #avatar-health {
         display: flex;
         flex-direction: column;
         gap: 16px;
         align-items: flex-start;
-        padding: 16px;
-        border: 2px solid #333;
-        border-radius: 2px;
-        background-color: white;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        padding: 18px;
+        border: 2px solid rgba(51, 51, 51, 0.12);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.12);
     }
     .avatar-bossbar {
         display: flex;
@@ -487,11 +533,45 @@
         gap: 16px;
         width: 100%;
     }
+    .avatar-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        min-width: 90px;
+        gap: 4px;
+    }
     .avatar-bossbar h1 {
         margin: 0;
-        min-width: 90px;
         text-align: left;
     }
+    .avatar-status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        max-width: 180px;
+    }
+    .avatar-status-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        line-height: 1.2;
+        letter-spacing: 0.02em;
+        border: 1px solid rgba(0,0,0,0.08);
+        background: #f5efe3;
+        color: #5e4631;
+        white-space: nowrap;
+    }
+    .avatar-status-chip.is-muted {
+        opacity: 0.72;
+    }
+    .avatar-status-chip.is-enchanted { background: #f0e2ff; color: #6a2ca0; }
+    .avatar-status-chip.is-shielded { background: #e1f0ff; color: #1f5ea8; }
+    .avatar-status-chip.is-parrying { background: #ffe9d9; color: #9b4b11; }
+    .avatar-status-chip.is-frozen { background: #daf2ff; color: #0f6a87; }
+    .avatar-status-chip.is-shocked { background: #fff4bf; color: #856900; }
+    .avatar-status-chip.is-weakened { background: #ffe0e0; color: #a03b3b; }
     .avatar-bossbar input[type="range"] {
         width: 240px;
     }
@@ -538,12 +618,12 @@
         flex-direction: column;
         align-items: center;
         gap: 10px;
-        padding: 16px;
+        padding: 18px;
         width: 500px;
-        border: 2px solid #333;
-        border-radius: 2px;
-        background-color: white;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid rgba(51, 51, 51, 0.12);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.12);
     }
 
     #phase-indicator {
@@ -552,30 +632,34 @@
         align-items: center;
         gap: 20px;
         padding: 16px;
-        margin: 16px 0;
-        background-color: #333;
-        border: 2px solid #fff;
-        border-radius: 4px;
-        color: #fff;
+        margin: 24px 0 0;
+        flex: 0 0 320px;
+        background: linear-gradient(180deg, #40352b, #2e261f);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 14px;
+        color: #fff7ea;
         font-family: monospace;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.16);
+        align-self: center;
     }
 
     #phase-label {
-        font-size: 1.2rem;
+        font-size: 1rem;
         font-weight: bold;
         letter-spacing: 2px;
+        text-align: center;
     }
 
     #phase-timer {
-        font-size: 2.5rem;
+        font-size: 2.2rem;
         font-weight: bold;
         font-family: 'Courier New', monospace;
         color: #fff;
-        background-color: #000;
+        background: rgba(0,0,0,0.75);
         padding: 12px 20px;
-        border: 2px solid #fff;
-        border-radius: 4px;
-        min-width: 100px;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 12px;
+        min-width: 88px;
         text-align: center;
     }
 

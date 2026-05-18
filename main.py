@@ -1,4 +1,4 @@
-import json, os, time
+import json, os, time, threading
 import dotenv, random
 from flask import Flask, render_template, request, redirect
 from openai import OpenAI
@@ -13,6 +13,7 @@ BANNED_WORDS = [
 
 active_games = {
     6767: {
+        "game_id": 6767,
         "question_set": "test",
         "game_status": "lobby",
         "boss_health": 300,
@@ -41,8 +42,13 @@ active_games = {
         "action_cooldowns": {"Wizard": None, "Knight": None, "Monk": None},
         "players_answered": set(),
         "game_over": False,
-        "round_results": None
+        "round_results": None,
+        "round_ready_for_advance_index": None
     }
+}
+
+game_locks = {
+    6767: threading.RLock(),
 }
 
 dotenv.load_dotenv()
@@ -110,15 +116,18 @@ def _validate_question_set_data(data):
         "questions": questions,
     }
 
-def create_new_game(question_set):
+def create_new_game(question_set, answer_timeout_seconds=60, vote_timeout_seconds=30):
     new_game_id = random.randint(11111,99999)
     while new_game_id in active_games:
         new_game_id = random.randint(11111,99999)
-    active_games[new_game_id] = _build_game_state(question_set)
+    active_games[new_game_id] = _build_game_state(question_set, answer_timeout_seconds, vote_timeout_seconds)
+    active_games[new_game_id]["game_id"] = new_game_id
+    game_locks[new_game_id] = threading.RLock()
     return new_game_id
 
-def _build_game_state(question_set):
+def _build_game_state(question_set, answer_timeout_seconds=60, vote_timeout_seconds=30):
     return {
+        "game_id": None,
         "question_set": question_set,
         "game_status": "lobby",
         "boss_health": 300,
@@ -145,13 +154,46 @@ def _build_game_state(question_set):
         "round_results": None,
         "round_started_at": None,
         "round_resolved": False,
-        "round_advanced": False,
-        "answer_timeout_seconds": 60,
-        "vote_timeout_seconds": 30,
+        "round_ready_for_advance_index": None,
+        "answer_timeout_seconds": int(answer_timeout_seconds),
+        "vote_timeout_seconds": int(vote_timeout_seconds),
         "answer_phase_started_at": None,
         "vote_phase_started_at": None,
         "current_phase": "answer",
         "server_time": time.time(),
+    }
+
+def _sync_boss_health(game_data):
+    boss_state = game_data.get("boss_state")
+    if isinstance(boss_state, dict):
+        game_data["boss_health"] = boss_state.get("hp", game_data.get("boss_health", 300))
+
+def _get_player_by_id(game_data, player_id):
+    for player in game_data.get("players", []):
+        if player.get("id") == player_id:
+            return player
+    return None
+
+
+def _get_game_lock(game_id):
+    lock = game_locks.get(game_id)
+    if lock is None:
+        lock = threading.RLock()
+        game_locks[game_id] = lock
+    return lock
+
+
+def _build_question_response(game_data, question_index):
+    questions = game_data.get("questions_data", [])
+    if question_index < 0 or question_index >= len(questions):
+        return None
+
+    current_question = questions[question_index]
+    return {
+        "question": current_question["question"],
+        "options": [opt["text"] for opt in current_question["options"]],
+        "question_index": question_index,
+        "total_questions": len(questions)
     }
 
 def _reset_round_state(game_data):
@@ -161,7 +203,7 @@ def _reset_round_state(game_data):
     game_data["players_answered"] = set()
     game_data["round_results"] = None
     game_data["round_resolved"] = False
-    game_data["round_advanced"] = False
+    game_data["round_ready_for_advance_index"] = None
     game_data["round_started_at"] = time.time()
     game_data["answer_phase_started_at"] = time.time()
     game_data["vote_phase_started_at"] = None
@@ -173,6 +215,7 @@ def _mark_game_over(game_data, outcome, round_results=None):
     game_data["game_status"] = "ended"
     game_data["round_resolved"] = True
     game_data["round_results"] = round_results
+    _sync_boss_health(game_data)
     game_data["current_question_index"] = min(game_data.get("current_question_index", 0), max(len(game_data.get("questions_data", [])) - 1, 0))
     return {
         "game_over": True,
@@ -197,6 +240,7 @@ def _start_game_logic(game_data):
     game_data["avatar_states"]["Knight"] = {"hp": 40, "status": []}
     game_data["avatar_states"]["Monk"] = {"hp": 35, "status": []}
     game_data["action_cooldowns"] = {"Wizard": None, "Knight": None, "Monk": None}
+    _sync_boss_health(game_data)
     _reset_round_state(game_data)
     return {
         "status": "in-progress",
@@ -244,6 +288,7 @@ def _maybe_resolve_round(game_data):
     if eligible_voters and eligible_voters.issubset(votes_cast) and vote_phase_started_at is not None:
         game_data["round_results"] = resolve_round(game_data)
         game_data["round_resolved"] = True
+        game_data["round_ready_for_advance_index"] = game_data.get("current_question_index", 0)
         return True
     
     # Check if vote phase timeout has elapsed
@@ -252,6 +297,7 @@ def _maybe_resolve_round(game_data):
         if vote_phase_elapsed >= vote_timeout:
             game_data["round_results"] = resolve_round(game_data)
             game_data["round_resolved"] = True
+            game_data["round_ready_for_advance_index"] = game_data.get("current_question_index", 0)
             return True
     
     return False
@@ -267,7 +313,16 @@ def host():
         question_set = request.form.get("question_set")
         if question_set not in questions_lib.get_question_set_ids():
             return "Invalid question set selected", 400
-        new_game_id = create_new_game(question_set)
+        try:
+            answer_timeout_seconds = int(request.form.get("answer_timeout_seconds", 60))
+            vote_timeout_seconds = int(request.form.get("vote_timeout_seconds", 30))
+        except (TypeError, ValueError):
+            return "Invalid timeout values", 400
+
+        answer_timeout_seconds = max(10, min(answer_timeout_seconds, 300))
+        vote_timeout_seconds = max(5, min(vote_timeout_seconds, 120))
+
+        new_game_id = create_new_game(question_set, answer_timeout_seconds, vote_timeout_seconds)
         return redirect(f"/host/{new_game_id}")
     else:
         avail_q_sets = questions_lib.get_question_set_choices()
@@ -438,11 +493,9 @@ def player_game_view(game_id, player_id):
     if not game_data:
         return "Game not found", 404
     
-    players = game_data.get("players", [])
-    if player_id < 0 or player_id >= len(players):
+    player_data = _get_player_by_id(game_data, player_id)
+    if not player_data:
         return "Player not found", 404
-    
-    player_data = players[player_id]
     if player_data["player_status"] == "kicked":
         return "You have been kicked from the game.", 403
     elif player_data["player_status"] == "lobby":
@@ -466,11 +519,11 @@ def kick_player(game_id, player_id):
     if not game_data:
         return "Game not found", 404
     
-    players = game_data.get("players", [])
-    if player_id < 0 or player_id >= len(players):
+    player = _get_player_by_id(game_data, player_id)
+    if not player:
         return "Player not found", 404
     
-    players[player_id]["player_status"] = "kicked"
+    player["player_status"] = "kicked"
     return "200 OK"
 
 @app.route("/game/<int:game_id>/player/get-data/<int:player_id>")
@@ -479,29 +532,16 @@ def get_player_status(game_id, player_id):
     if not game_data:
         return "Game not found", 404
 
-    players = game_data.get("players", [])
-    for player in players:
-        if player["id"] == player_id:
-            return player
+    player = _get_player_by_id(game_data, player_id)
+    if player:
+        return player
     return "Player not found", 404
 
-@app.route("/game/start/<int:game_id>")
-def start_game(game_id):
-    global active_games
-    game_data = active_games.get(game_id)
-    if not game_data:
-        return "Game not found", 404
-    if game_data["game_status"] != "lobby":
-        return "Game is not in lobby state", 400
-
-    start_payload, error_payload, status_code = _start_game_logic(game_data)
-    if error_payload:
-        return error_payload, status_code
-
+def _assign_player_avatars(game_data, game_id=None):
     # scramble the order of all players to make avatar selection fair
     random.shuffle(game_data["players"])
 
-    avatar_pool = list(game_data.get("avatars", {}).values()) # add multiple times to creat a large pool
+    avatar_pool = list(game_data.get("avatars", {}).values())
     avatar_pool *= 50  # create a large pool of avatars
 
     # iterate over each joined player and register them in the game as well as assign them an avatar
@@ -520,7 +560,7 @@ def start_game(game_id):
     for player in game_data.get("players", []):
         if player["player_status"] == "ingame" and not player.get("assigned_avatar"):
             return f"Not enough avatars for all players. Player {player['name']} could not be assigned an avatar.", 500
-    
+
     # count how many players each avatar has assigned to it
     avatar_counts = {}
     for player in game_data.get("players", []):
@@ -528,9 +568,31 @@ def start_game(game_id):
             avatar_name = player.get("assigned_avatar")
             if avatar_name:
                 avatar_counts[avatar_name] = avatar_counts.get(avatar_name, 0) + 1
-    print(f"Avatar counts for game {game_id}:", avatar_counts)
+    if game_id is not None:
+        print(f"Avatar counts for game {game_id}:", avatar_counts)
+    else:
+        print("Avatar counts:", avatar_counts)
     print(f"{len(game_data.get('players', []))} players in game")
     print("Ready to start..")
+
+    return None
+
+@app.route("/game/start/<int:game_id>")
+def start_game(game_id):
+    global active_games
+    game_data = active_games.get(game_id)
+    if not game_data:
+        return "Game not found", 404
+    if game_data["game_status"] != "lobby":
+        return "Game is not in lobby state", 400
+
+    start_payload, error_payload, status_code = _start_game_logic(game_data)
+    if error_payload:
+        return error_payload, status_code
+
+    error_payload = _assign_player_avatars(game_data, game_id)
+    if error_payload:
+        return error_payload
 
     return start_payload
 
@@ -539,45 +601,46 @@ def get_full_game_state(game_id):
     game_data = active_games.get(game_id)
     if not game_data:
         return "Game not found", 404
-    _maybe_resolve_round(game_data)
-    # Update server time on every state call so client has current time for countdown
-    game_data["server_time"] = time.time()
-    
-    # Ensure timing fields exist (in case game hasn't started yet)
-    if game_data.get("answer_phase_started_at") is None:
-        game_data["answer_phase_started_at"] = time.time()
-    if game_data.get("vote_phase_started_at") is None and game_data.get("current_phase") == "vote":
-        game_data["vote_phase_started_at"] = time.time()
-    if game_data.get("current_phase") is None:
-        game_data["current_phase"] = "answer"
-    if game_data.get("answer_timeout_seconds") is None:
-        game_data["answer_timeout_seconds"] = 60
-    if game_data.get("vote_timeout_seconds") is None:
-        game_data["vote_timeout_seconds"] = 30
-    
-    def _sanitize(obj):
-        # dict -> sanitize each value
-        if isinstance(obj, dict):
-            return {k: _sanitize(v) for k, v in obj.items()}
-        # list/tuple -> sanitize items
-        if isinstance(obj, (list, tuple)):
-            return [_sanitize(v) for v in obj]
-        # sets are converted to lists so the response stays JSON-safe
-        if isinstance(obj, set):
-            return [_sanitize(v) for v in obj]
-        # objects with __dict__ (like avatar instances) -> convert to their attributes
-        if hasattr(obj, '__dict__'):
-            return _sanitize(vars(obj))
-        # basic JSON types passthrough
-        if isinstance(obj, (str, int, float, bool)) or obj is None:
-            return obj
-        # fallback: stringify unknown types
-        try:
-            return str(obj)
-        except Exception:
-            return None
+    with _get_game_lock(game_id):
+        _maybe_resolve_round(game_data)
+        # Update server time on every state call so client has current time for countdown
+        game_data["server_time"] = time.time()
+        
+        # Ensure timing fields exist (in case game hasn't started yet)
+        if game_data.get("answer_phase_started_at") is None:
+            game_data["answer_phase_started_at"] = time.time()
+        if game_data.get("vote_phase_started_at") is None and game_data.get("current_phase") == "vote":
+            game_data["vote_phase_started_at"] = time.time()
+        if game_data.get("current_phase") is None:
+            game_data["current_phase"] = "answer"
+        if game_data.get("answer_timeout_seconds") is None:
+            game_data["answer_timeout_seconds"] = 60
+        if game_data.get("vote_timeout_seconds") is None:
+            game_data["vote_timeout_seconds"] = 30
 
-    return _sanitize(game_data)
+        def _sanitize(obj):
+            # dict -> sanitize each value
+            if isinstance(obj, dict):
+                return {k: _sanitize(v) for k, v in obj.items()}
+            # list/tuple -> sanitize items
+            if isinstance(obj, (list, tuple)):
+                return [_sanitize(v) for v in obj]
+            # sets are converted to lists so the response stays JSON-safe
+            if isinstance(obj, set):
+                return [_sanitize(v) for v in obj]
+            # objects with __dict__ (like avatar instances) -> convert to their attributes
+            if hasattr(obj, '__dict__'):
+                return _sanitize(vars(obj))
+            # basic JSON types passthrough
+            if isinstance(obj, (str, int, float, bool)) or obj is None:
+                return obj
+            # fallback: stringify unknown types
+            try:
+                return str(obj)
+            except Exception:
+                return None
+
+        return _sanitize(game_data)
 
 @app.route("/game/<int:game_id>/start-game")
 def start_game_endpoint(game_id):
@@ -593,9 +656,9 @@ def start_game_endpoint(game_id):
     if error_payload:
         return error_payload, status_code
 
-    for player in game_data.get("players", []):
-        if player["player_status"] == "lobby":
-            player["player_status"] = "ingame"
+    error_payload = _assign_player_avatars(game_data, game_id)
+    if error_payload:
+        return {"error": error_payload}, 500
 
     return start_payload
 
@@ -701,6 +764,8 @@ def apply_action_damage(game_data, avatar_name, action):
     if "Frozen" in boss["status"] and result["damage"] > 0 and action != "Ice":
         boss["status"].remove("Frozen")
         result["status_applied"].append("Boss is no longer Frozen!")
+
+    _sync_boss_health(game_data)
     
     return result
 
@@ -748,6 +813,7 @@ def resolve_round(game_data):
     
     # Check if boss is defeated
     if game_data["boss_state"]["hp"] <= 0:
+        _sync_boss_health(game_data)
         round_results["game_over"] = True
         round_results["outcome"] = "WIN"
         return round_results
@@ -805,10 +871,12 @@ def resolve_round(game_data):
     # Check if all avatars are defeated
     all_avatars_dead = all(game_data["avatar_states"][avatar]["hp"] <= 0 for avatar in ["Wizard", "Knight", "Monk"])
     if all_avatars_dead:
+        _sync_boss_health(game_data)
         round_results["game_over"] = True
         round_results["outcome"] = "LOSE"
         return round_results
     
+    _sync_boss_health(game_data)
     return round_results
 
 @app.route("/game/<int:game_id>/question")
@@ -820,58 +888,50 @@ def get_current_question(game_id):
     game_data = active_games.get(game_id)
     if not game_data:
         return {"error": "Game not found"}, 404
-
-    _maybe_resolve_round(game_data)
-    
-    if game_data["game_over"]:
-        return {
-            "question": None,
-            "game_state": {
-                "boss_hp": game_data["boss_state"]["hp"],
-                "boss_status": game_data["boss_state"]["status"],
-                "avatar_states": game_data["avatar_states"],
-                "game_over": True,
-                "round_results": game_data.get("round_results")
+    with _get_game_lock(game_id):
+        _maybe_resolve_round(game_data)
+        _sync_boss_health(game_data)
+        
+        if game_data["game_over"]:
+            return {
+                "question": None,
+                "game_state": {
+                    "boss_health": game_data["boss_health"],
+                    "boss_hp": game_data["boss_state"]["hp"],
+                    "boss_status": game_data["boss_state"]["status"],
+                    "avatar_states": game_data["avatar_states"],
+                    "game_over": True,
+                    "round_results": game_data.get("round_results")
+                }
             }
-        }
 
-    if game_data["game_status"] != "in-progress":
-        return {"error": "Game is not in progress"}, 400
-    
-    current_idx = game_data["current_question_index"]
-    questions = game_data["questions_data"]
-    
-    if current_idx >= len(questions):
-        return {"error": "No more questions"}, 400
-    
-    current_question = questions[current_idx]
-    
-    # Build question response WITHOUT correct answer flags
-    question_response = {
-        "question": current_question["question"],
-        "options": [opt["text"] for opt in current_question["options"]],
-        "question_index": current_idx,
-        "total_questions": len(questions)
-    }
-    
-    # Build game state response
-    game_state = {
-        "boss_hp": game_data["boss_state"]["hp"],
-        "boss_status": game_data["boss_state"]["status"],
-        "avatar_states": game_data["avatar_states"],
-        "game_over": game_data["game_over"],
-        "server_time": time.time(),
-        "current_phase": game_data.get("current_phase", "answer"),
-        "answer_phase_started_at": game_data.get("answer_phase_started_at"),
-        "vote_phase_started_at": game_data.get("vote_phase_started_at"),
-        "answer_timeout_seconds": game_data.get("answer_timeout_seconds", 60),
-        "vote_timeout_seconds": game_data.get("vote_timeout_seconds", 30),
-    }
-    
-    return {
-        "question": question_response,
-        "game_state": game_state
-    }
+        if game_data["game_status"] != "in-progress":
+            return {"error": "Game is not in progress"}, 400
+        
+        current_idx = game_data["current_question_index"]
+        question_response = _build_question_response(game_data, current_idx)
+        if question_response is None:
+            return {"error": "No more questions"}, 400
+        
+        # Build game state response
+        game_state = {
+            "boss_health": game_data["boss_health"],
+            "boss_hp": game_data["boss_state"]["hp"],
+            "boss_status": game_data["boss_state"]["status"],
+            "avatar_states": game_data["avatar_states"],
+            "game_over": game_data["game_over"],
+            "server_time": time.time(),
+            "current_phase": game_data.get("current_phase", "answer"),
+            "answer_phase_started_at": game_data.get("answer_phase_started_at"),
+            "vote_phase_started_at": game_data.get("vote_phase_started_at"),
+            "answer_timeout_seconds": game_data.get("answer_timeout_seconds", 60),
+            "vote_timeout_seconds": game_data.get("vote_timeout_seconds", 30),
+        }
+        
+        return {
+            "question": question_response,
+            "game_state": game_state
+        }
 
 @app.route("/game/<int:game_id>/answer", methods=["POST"])
 def submit_answer(game_id):
@@ -883,47 +943,48 @@ def submit_answer(game_id):
     game_data = active_games.get(game_id)
     if not game_data:
         return {"error": "Game not found"}, 404
-    
-    if game_data["game_status"] != "in-progress":
-        return {"error": "Game is not in progress"}, 400
-    
-    data = request.get_json()
-    player_id = data.get("player_id")
-    option_index = data.get("option_index")
-    
-    # Validate inputs
-    if player_id is None or option_index is None:
-        return {"error": "Missing player_id or option_index"}, 400
-    
-    if not isinstance(option_index, int) or option_index < 0 or option_index > 3:
-        return {"error": "Invalid option_index"}, 400
-    
-    # Check player exists
-    players = game_data.get("players", [])
-    if player_id < 0 or player_id >= len(players):
-        return {"error": "Player not found"}, 404
-    
-    current_idx = game_data["current_question_index"]
-    questions = game_data["questions_data"]
-    
-    if current_idx >= len(questions):
-        return {"error": "No more questions"}, 400
-    
-    current_question = questions[current_idx]
-    correct_option = current_question["options"][option_index]
-    is_correct = correct_option.get("isCorrect", False)
-    
-    # Mark player as answered
-    game_data["players_answered"].add(player_id)
-    
-    if is_correct:
-        # Mark player as eligible to vote
-        game_data.setdefault("eligible_voters", set()).add(player_id)
-    
-        # Check if we should transition to vote phase
-        _maybe_resolve_round(game_data)
-    
-    return {"correct": is_correct}
+
+    with _get_game_lock(game_id):
+        if game_data["game_status"] != "in-progress":
+            return {"error": "Game is not in progress"}, 400
+        
+        data = request.get_json()
+        player_id = data.get("player_id")
+        option_index = data.get("option_index")
+        
+        # Validate inputs
+        if player_id is None or option_index is None:
+            return {"error": "Missing player_id or option_index"}, 400
+        
+        if not isinstance(option_index, int) or option_index < 0 or option_index > 3:
+            return {"error": "Invalid option_index"}, 400
+        
+        # Check player exists
+        players = game_data.get("players", [])
+        if player_id < 0 or player_id >= len(players):
+            return {"error": "Player not found"}, 404
+        
+        current_idx = game_data["current_question_index"]
+        questions = game_data["questions_data"]
+        
+        if current_idx >= len(questions):
+            return {"error": "No more questions"}, 400
+        
+        current_question = questions[current_idx]
+        correct_option = current_question["options"][option_index]
+        is_correct = correct_option.get("isCorrect", False)
+        
+        # Mark player as answered
+        game_data["players_answered"].add(player_id)
+        
+        if is_correct:
+            # Mark player as eligible to vote
+            game_data.setdefault("eligible_voters", set()).add(player_id)
+        
+            # Check if we should transition to vote phase
+            _maybe_resolve_round(game_data)
+        
+        return {"correct": is_correct}
 
 @app.route("/game/<int:game_id>/vote", methods=["POST"])
 def submit_vote(game_id):
@@ -935,48 +996,48 @@ def submit_vote(game_id):
     game_data = active_games.get(game_id)
     if not game_data:
         return {"error": "Game not found"}, 404
-    
-    if game_data["game_status"] != "in-progress":
-        return {"error": "Game is not in progress"}, 400
-    
-    data = request.get_json()
-    player_id = data.get("player_id")
-    avatar = data.get("avatar")
-    action = data.get("action")
-    
-    # Validate inputs
-    if player_id is None or avatar is None or action is None:
-        return {"error": "Missing player_id, avatar, or action"}, 400
-    
-    # Check player exists and has assigned avatar
-    players = game_data.get("players", [])
-    if player_id < 0 or player_id >= len(players):
-        return {"error": "Player not found"}, 404
-    
-    player = players[player_id]
-    if player["assigned_avatar"] != avatar:
-        return {"error": "Player is not on that avatar team"}, 400
 
-    if player_id not in game_data.get("eligible_voters", set()):
-        return {"error": "Player is not eligible to vote this round"}, 403
+    with _get_game_lock(game_id):
+        if game_data["game_status"] != "in-progress":
+            return {"error": "Game is not in progress"}, 400
+        
+        data = request.get_json()
+        player_id = data.get("player_id")
+        avatar = data.get("avatar")
+        action = data.get("action")
+        
+        # Validate inputs
+        if player_id is None or avatar is None or action is None:
+            return {"error": "Missing player_id, avatar, or action"}, 400
+        
+        # Check player exists and has assigned avatar
+        player = _get_player_by_id(game_data, player_id)
+        if not player:
+            return {"error": "Player not found"}, 404
+        
+        if player["assigned_avatar"] != avatar:
+            return {"error": "Player is not on that avatar team"}, 400
 
-    if player_id in game_data.setdefault("votes_cast", set()):
-        return {"status": "vote already recorded"}
-    
-    # Check action is valid for avatar
-    valid_actions = get_avatar_actions(avatar)
-    if action not in valid_actions:
-        return {"error": "Invalid action for avatar"}, 400
-    
-    # Tally vote
-    if avatar not in game_data["votes"]:
-        game_data["votes"][avatar] = {}
-    game_data["votes"][avatar][action] = game_data["votes"][avatar].get(action, 0) + 1
-    game_data.setdefault("votes_cast", set()).add(player_id)
+        if player_id not in game_data.get("eligible_voters", set()):
+            return {"error": "Player is not eligible to vote this round"}, 403
 
-    _maybe_resolve_round(game_data)
-    
-    return {"status": "vote recorded"}
+        if player_id in game_data.setdefault("votes_cast", set()):
+            return {"status": "vote already recorded"}
+        
+        # Check action is valid for avatar
+        valid_actions = get_avatar_actions(avatar)
+        if action not in valid_actions:
+            return {"error": "Invalid action for avatar"}, 400
+        
+        # Tally vote
+        if avatar not in game_data["votes"]:
+            game_data["votes"][avatar] = {}
+        game_data["votes"][avatar][action] = game_data["votes"][avatar].get(action, 0) + 1
+        game_data.setdefault("votes_cast", set()).add(player_id)
+
+        _maybe_resolve_round(game_data)
+        
+        return {"status": "vote recorded"}
 
 @app.route("/game/<int:game_id>/next-question")
 def advance_round(game_id):
@@ -984,85 +1045,94 @@ def advance_round(game_id):
     Advances to the next question/round.
     First resolves the current round if not already done.
     Checks win/lose conditions.
+    Uses index-based guard to prevent multiple clients from incrementing the same round.
     """
     global active_games
     game_data = active_games.get(game_id)
     if not game_data:
         return {"error": "Game not found"}, 404
-    
-    if game_data["game_status"] != "in-progress":
-        return {"error": "Game is not in progress"}, 400
-    
-    # Prevent multiple clients from advancing the same round (race condition fix)
-    if game_data.get("round_advanced"):
+
+    with _get_game_lock(game_id):
+        if game_data["game_status"] != "in-progress":
+            return {"error": "Game is not in progress"}, 400
+
+        # Make sure the current round has been resolved if enough time/actions have passed.
+        _maybe_resolve_round(game_data)
+        _sync_boss_health(game_data)
+
+        round_results = game_data.get("round_results") or {"actions": [], "boss_attacks": [], "game_over": False, "outcome": None}
+        if round_results["game_over"]:
+            return _mark_game_over(game_data, round_results["outcome"], round_results)
+
         current_idx = game_data.get("current_question_index", 0)
-        if current_idx < len(game_data.get("questions_data", [])):
-            current_question = game_data["questions_data"][current_idx]
-            question_response = {
-                "question": current_question["question"],
-                "options": [opt["text"] for opt in current_question["options"]],
-                "question_index": current_idx,
-                "total_questions": len(game_data["questions_data"])
+        ready_idx = game_data.get("round_ready_for_advance_index")
+        current_question_response = _build_question_response(game_data, current_idx)
+
+        # If this round is not ready yet, fail closed instead of forcing an advance.
+        if ready_idx is None:
+            if current_question_response is None:
+                return {"error": "No more questions"}, 400
+            return {
+                "question": current_question_response,
+                "game_state": {
+                    "boss_health": game_data["boss_health"],
+                    "boss_hp": game_data["boss_state"]["hp"],
+                    "boss_status": game_data["boss_state"]["status"],
+                    "avatar_states": game_data["avatar_states"],
+                    "game_over": False,
+                    "round_results": round_results
+                }
             }
-            game_state = {
-                "boss_hp": game_data["boss_state"]["hp"],
-                "boss_status": game_data["boss_state"]["status"],
-                "avatar_states": game_data["avatar_states"],
-                "game_over": False,
-                "round_results": game_data.get("round_results")
-            }
-            return {"question": question_response, "game_state": game_state}
-        return {"error": "No more questions"}, 400
-    
-    # Resolve the round if it hasn't resolved yet.
-    if not _maybe_resolve_round(game_data):
-        game_data["round_results"] = resolve_round(game_data)
-        game_data["round_resolved"] = True
 
-    round_results = game_data.get("round_results") or {"actions": [], "boss_attacks": [], "game_over": False, "outcome": None}
-    if round_results["game_over"]:
-        return _mark_game_over(game_data, round_results["outcome"], round_results)
+        # Another client already advanced this round; return the current question instead of advancing again.
+        if ready_idx != current_idx:
+            if current_question_response is not None:
+                game_state = {
+                    "boss_health": game_data["boss_health"],
+                    "boss_hp": game_data["boss_state"]["hp"],
+                    "boss_status": game_data["boss_state"]["status"],
+                    "avatar_states": game_data["avatar_states"],
+                    "game_over": False,
+                    "round_results": round_results
+                }
+                return {"question": current_question_response, "game_state": game_state}
+            return {"error": "No more questions"}, 400
 
-    # Mark that we've advanced this round (prevents race condition with multiple clients)
-    game_data["round_advanced"] = True
-    
-    # Advance to next question
-    game_data["current_question_index"] += 1
-    
-    # Check if out of questions
-    if game_data["current_question_index"] >= len(game_data["questions_data"]):
-        return _mark_game_over(game_data, "LOSE", round_results)
-    
-    # Check lose condition (all avatars dead)
-    all_avatars_dead = all(game_data["avatar_states"][avatar]["hp"] <= 0 for avatar in ["Wizard", "Knight", "Monk"])
-    if all_avatars_dead:
-        return _mark_game_over(game_data, "LOSE", round_results)
+        # This client is the first one allowed to advance this completed round.
+        game_data["round_ready_for_advance_index"] = None
+        game_data["current_question_index"] += 1
 
-    _reset_round_state(game_data)
-    
-    # Return next question
-    current_idx = game_data["current_question_index"]
-    current_question = game_data["questions_data"][current_idx]
-    
-    question_response = {
-        "question": current_question["question"],
-        "options": [opt["text"] for opt in current_question["options"]],
-        "question_index": current_idx,
-        "total_questions": len(game_data["questions_data"])
-    }
-    
-    game_state = {
-        "boss_hp": game_data["boss_state"]["hp"],
-        "boss_status": game_data["boss_state"]["status"],
-        "avatar_states": game_data["avatar_states"],
-        "game_over": False,
-        "round_results": round_results
-    }
-    
-    return {
-        "question": question_response,
-        "game_state": game_state
-    }
+        # Check if out of questions
+        if game_data["current_question_index"] >= len(game_data["questions_data"]):
+            return _mark_game_over(game_data, "LOSE", round_results)
+
+        # Check lose condition (all avatars dead)
+        all_avatars_dead = all(game_data["avatar_states"][avatar]["hp"] <= 0 for avatar in ["Wizard", "Knight", "Monk"])
+        if all_avatars_dead:
+            return _mark_game_over(game_data, "LOSE", round_results)
+
+        # Reset round state for the new question
+        _reset_round_state(game_data)
+
+        # Return next question
+        current_idx = game_data["current_question_index"]
+        question_response = _build_question_response(game_data, current_idx)
+        if question_response is None:
+            return _mark_game_over(game_data, "LOSE", round_results)
+
+        game_state = {
+            "boss_health": game_data["boss_health"],
+            "boss_hp": game_data["boss_state"]["hp"],
+            "boss_status": game_data["boss_state"]["status"],
+            "avatar_states": game_data["avatar_states"],
+            "game_over": False,
+            "round_results": round_results
+        }
+
+        return {
+            "question": question_response,
+            "game_state": game_state
+        }
 
 @app.route("/debug")
 def debug_options():

@@ -8,6 +8,16 @@
 <body>
     <h1>Host a new game</h1>
     <form method="POST" action="/host">
+        <label>
+            Time per question (seconds)
+            <input type="number" name="answer_timeout_seconds" min="10" max="300" step="1" value="60">
+        </label>
+        <br>
+        <label>
+            Time per voting round (seconds)
+            <input type="number" name="vote_timeout_seconds" min="5" max="120" step="1" value="30">
+        </label>
+        <br>
         <select name="question_set">
             <option value="" disabled selected>Select a question set</option>
             {% for set in question_sets %}

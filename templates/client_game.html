@@ -275,7 +275,8 @@
         if (!gameState) return;
         state.gameState = gameState;
 
-        const bossHp = Number(gameState.boss_hp ?? 300);
+        const bossState = gameState.boss_state || {};
+        const bossHp = Number(gameState.boss_hp ?? gameState.boss_health ?? bossState.hp ?? 300);
         const bossMax = 300;
         document.getElementById('status-boss').textContent = `Boss HP: ${Math.max(0, bossHp)} / ${bossMax}`;
         renderHealthCard('boss', bossHp, bossMax, `${Math.max(0, bossHp)} / ${bossMax}`);
@@ -476,6 +477,8 @@
             renderGameState(state.gameState);
         }
 
+        const roundSummaryDelayMs = 4500;
+
         window.setTimeout(async () => {
             try {
                 const response = await fetch(`/game/${gameId}/next-question`);
@@ -502,7 +505,7 @@
                 setMessage(error.message, 'bad');
                 state.roundHandled = false;
             }
-        }, 1800);
+        }, roundSummaryDelayMs);
     }
 
     async function loadCurrentQuestion() {
