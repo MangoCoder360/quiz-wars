@@ -127,19 +127,20 @@ def _validate_question_set_data(data):
         "questions": questions,
     }
 
-def create_new_game(question_set, answer_timeout_seconds=60, vote_timeout_seconds=30):
+def create_new_game(question_set, answer_timeout_seconds=60, vote_timeout_seconds=30, shuffle_questions=False):
     new_game_id = random.randint(11111,99999)
     while new_game_id in active_games:
         new_game_id = random.randint(11111,99999)
-    active_games[new_game_id] = _build_game_state(question_set, answer_timeout_seconds, vote_timeout_seconds)
+    active_games[new_game_id] = _build_game_state(question_set, answer_timeout_seconds, vote_timeout_seconds, shuffle_questions)
     active_games[new_game_id]["game_id"] = new_game_id
     game_locks[new_game_id] = threading.RLock()
     return new_game_id
 
-def _build_game_state(question_set, answer_timeout_seconds=60, vote_timeout_seconds=30):
+def _build_game_state(question_set, answer_timeout_seconds=60, vote_timeout_seconds=30, shuffle_questions=False):
     return {
         "game_id": None,
         "question_set": question_set,
+        "shuffle_questions": bool(shuffle_questions),
         "game_status": "lobby",
         "boss_health": 300,
         "avatars": {
@@ -243,6 +244,10 @@ def _start_game_logic(game_data):
     if not questions:
         return None, {"error": "Question set not found or is empty"}, 400
 
+    if game_data.get("shuffle_questions"):
+        questions = list(questions)
+        random.shuffle(questions)
+
     game_data["questions_data"] = questions
     game_data["current_question_index"] = 0
     game_data["game_status"] = "in-progress"
@@ -332,10 +337,12 @@ def host():
         except (TypeError, ValueError):
             return "Invalid timeout values", 400
 
+        shuffle_questions = request.form.get("shuffle_questions") == "on"
+
         answer_timeout_seconds = max(10, min(answer_timeout_seconds, 300))
         vote_timeout_seconds = max(5, min(vote_timeout_seconds, 120))
 
-        new_game_id = create_new_game(question_set, answer_timeout_seconds, vote_timeout_seconds)
+        new_game_id = create_new_game(question_set, answer_timeout_seconds, vote_timeout_seconds, shuffle_questions)
         return redirect(f"/host/{new_game_id}")
     else:
         avail_q_sets = questions_lib.get_question_set_choices()
@@ -1164,6 +1171,43 @@ def advance_round(game_id):
 @app.route("/debug")
 def debug_options():
     return render_template("debug.html")
+
+
+@app.route("/debug/set-boss-health", methods=["POST"])
+def debug_set_boss_health():
+    raw_game_id = request.form.get("game_id", "")
+    raw_boss_health = request.form.get("boss_health", "")
+
+    try:
+        game_id = int(raw_game_id)
+    except (TypeError, ValueError):
+        return "Invalid game ID", 400
+
+    game_data = active_games.get(game_id)
+    if not game_data:
+        return "Game not found", 404
+
+    try:
+        boss_health = int(raw_boss_health)
+    except (TypeError, ValueError):
+        return "Invalid boss health", 400
+
+    boss_health = max(0, min(boss_health, 9999))
+
+    with _get_game_lock(game_id):
+        boss_state = game_data.setdefault("boss_state", {"hp": 300, "status": []})
+        if not isinstance(boss_state, dict):
+            boss_state = {"hp": 300, "status": []}
+            game_data["boss_state"] = boss_state
+
+        boss_state["hp"] = boss_health
+        game_data["boss_health"] = boss_health
+        game_data["server_time"] = time.time()
+
+    return {
+        "game_id": game_id,
+        "boss_health": boss_health,
+    }
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)

@@ -8,10 +8,117 @@
 </head>
 <body>
     <h1>Debug Options</h1>
+    <section>
+        <h2>Set Boss Health</h2>
+        <form id="bossHealthForm">
+            <div>
+                <label for="bossGameId">Game ID</label>
+                <input id="bossGameId" name="game_id" type="number" min="0" step="1" required>
+            </div>
+            <div style="margin-top: 12px;">
+                <button type="button" id="loadBossHealthBtn">Load current boss health</button>
+            </div>
+            <div id="bossHealthEditor" style="display:none; margin-top: 16px;">
+                <div>
+                    <label for="bossHealthSlider">Boss health: <span id="bossHealthValue">300</span></label>
+                    <input id="bossHealthSlider" type="range" min="0" max="300" step="1" value="300">
+                </div>
+                <div style="margin-top: 12px;">
+                    <button type="submit">Update Boss Health</button>
+                </div>
+            </div>
+        </form>
+        <p id="bossHealthStatus"></p>
+    </section>
+
+    <h2>Lobby Actions</h2>
     <button onclick="spamPlayerJoins()">Spam Player Joins</button>
 </body>
 </html>
 <script>
+    const bossGameIdInput = document.getElementById('bossGameId');
+    const loadBossHealthBtn = document.getElementById('loadBossHealthBtn');
+    const bossHealthEditor = document.getElementById('bossHealthEditor');
+    const bossHealthSlider = document.getElementById('bossHealthSlider');
+    const bossHealthValue = document.getElementById('bossHealthValue');
+    const bossHealthStatus = document.getElementById('bossHealthStatus');
+    const bossHealthForm = document.getElementById('bossHealthForm');
+
+    function setBossHealthStatus(message, isError = false) {
+        bossHealthStatus.textContent = message;
+        bossHealthStatus.style.color = isError ? '#b00020' : '#0b7a2f';
+    }
+
+    function syncBossHealthLabel() {
+        bossHealthValue.textContent = bossHealthSlider.value;
+    }
+
+    bossHealthSlider.addEventListener('input', syncBossHealthLabel);
+
+    loadBossHealthBtn.addEventListener('click', async () => {
+        const gameId = bossGameIdInput.value.trim();
+        if (!gameId) {
+            setBossHealthStatus('Enter a game ID first.', true);
+            return;
+        }
+
+        setBossHealthStatus('Loading current boss health...');
+
+        try {
+            const response = await fetch(`/game/state/${gameId}`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to load game state');
+            }
+
+            const bossHp = Number(data?.boss_state?.hp ?? data?.boss_hp ?? data?.boss_health ?? 300);
+            const maxHp = Math.max(1, Math.ceil(Math.max(bossHp, 300) / 50) * 50);
+
+            bossHealthSlider.max = String(maxHp);
+            bossHealthSlider.value = String(Math.max(0, Math.min(maxHp, bossHp)));
+            syncBossHealthLabel();
+            bossHealthEditor.style.display = 'block';
+            setBossHealthStatus(`Loaded boss health for game ${gameId}.`);
+        } catch (error) {
+            bossHealthEditor.style.display = 'none';
+            setBossHealthStatus(error.message, true);
+        }
+    });
+
+    bossHealthForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const gameId = bossGameIdInput.value.trim();
+        const bossHealth = bossHealthSlider.value;
+
+        if (!gameId) {
+            setBossHealthStatus('Enter a game ID first.', true);
+            return;
+        }
+
+        setBossHealthStatus('Updating boss health...');
+
+        try {
+            const response = await fetch('/debug/set-boss-health', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ game_id: gameId, boss_health: bossHealth }).toString(),
+                credentials: 'same-origin'
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || data.message || 'Failed to update boss health');
+            }
+
+            setBossHealthStatus(`Boss health updated to ${data.boss_health} for game ${data.game_id}.`);
+        } catch (error) {
+            setBossHealthStatus(error.message, true);
+        }
+    });
+
     function spamPlayerJoins() {
         var gameId = prompt("Enter the game ID to spam joins to:");
         for (let i = 0; i < 10; i++) {

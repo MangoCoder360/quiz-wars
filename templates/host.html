@@ -18,6 +18,11 @@
             <input type="number" name="vote_timeout_seconds" min="5" max="120" step="1" value="30">
         </label>
         <br>
+        <label>
+            <input type="checkbox" name="shuffle_questions">
+            Shuffle questions
+        </label>
+        <br>
         <select name="question_set">
             <option value="" disabled selected>Select a question set</option>
             {% for set in question_sets %}
