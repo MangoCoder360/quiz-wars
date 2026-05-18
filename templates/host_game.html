@@ -344,6 +344,60 @@
         window.endOverlayShown = true;
     }
 
+    function playHostRoundAnimations(roundResults) {
+        if (!roundResults || !window.quizWarsAnimations) return;
+
+        const steps = [];
+
+        const avatarAnimationByAction = {
+            Fire: 'attackAvatar',
+            Ice: 'attackAvatar',
+            Lightning: 'attackAvatar',
+            Shield: 'jumpAvatar',
+            Break: 'attackAvatar',
+            Cleave: 'attackAvatar',
+            Parry: 'jumpAvatar',
+            Heal: 'jumpAvatar',
+            Enchant: 'jumpAvatar',
+            DoublePunch: 'attackAvatar',
+        };
+
+        (roundResults.actions || []).forEach(entry => {
+            if (!entry || !entry.avatar) return;
+
+            const avatarAction = String(entry.action || '').trim();
+            const avatarAnimation = avatarAnimationByAction[avatarAction] || 'jumpAvatar';
+            steps.push(() => window.quizWarsAnimations[avatarAnimation](entry.avatar));
+
+            if (Number(entry.damage || 0) > 0) {
+                steps.push(() => window.quizWarsAnimations.hitBoss());
+            } else if (Array.isArray(entry.status_applied) && entry.status_applied.length > 0 && avatarAnimation !== 'jumpAvatar') {
+                steps.push(() => window.quizWarsAnimations.jumpAvatar(entry.avatar));
+            }
+        });
+
+        (roundResults.boss_attacks || []).forEach(entry => {
+            if (!entry) return;
+
+            if (entry.frozen) {
+                steps.push(() => window.quizWarsAnimations.jumpBoss());
+                return;
+            }
+
+            steps.push(() => window.quizWarsAnimations.attackBoss());
+
+            if (entry.target && Number(entry.damage || 0) > 0) {
+                steps.push(() => window.quizWarsAnimations.hitAvatar(entry.target));
+            }
+        });
+
+        let delay = 0;
+        steps.forEach(step => {
+            window.setTimeout(step, delay);
+            delay += 240;
+        });
+    }
+
     function renderGameState() {
         fetch('/game/state/{{ game_id }}')
             .then(response => response.json())
@@ -474,14 +528,7 @@
                     const signature = JSON.stringify(data.round_results || {});
                     if (data.round_results && signature !== window.lastRoundSignature) {
                         window.lastRoundSignature = signature;
-                        const roundLog = data.round_results.actions || [];
-                        if (roundLog.length > 0 && window.quizWarsAnimations) {
-                            roundLog.forEach(entry => {
-                                if (entry.avatar) {
-                                    window.quizWarsAnimations.attackAvatar(entry.avatar);
-                                }
-                            });
-                        }
+                        playHostRoundAnimations(data.round_results);
                     }
 
                     if (data.game_over) {
@@ -720,7 +767,7 @@
         align-items: center;
         gap: 18px;
         padding: 18px 22px;
-        margin: 24px 0 0;
+        margin: 0;
         flex: 0 0 360px;
         background: linear-gradient(180deg, #40352b, #2e261f);
         border: 1px solid rgba(255,255,255,0.25);
@@ -728,7 +775,7 @@
         color: #fff7ea;
         font-family: monospace;
         box-shadow: 0 10px 24px rgba(0,0,0,0.16);
-        align-self: center;
+        align-self: flex-start;
     }
 
     #phase-label {
@@ -752,7 +799,7 @@
     }
 
     #game-stage {
-        margin-top: 28px;
+        margin-top: 8px;
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
