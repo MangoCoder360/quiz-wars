@@ -1,0 +1,804 @@
+{
+    "displayName": "Literary Eras Quiz",
+    "description": "",
+    "questions": [
+        {
+            "question": "Which literary era focused on logic, reason, and science?",
+            "options": [
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era focused on emotion, imagination, and nature?",
+            "options": [
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which literary era often included dark settings, mystery, and fear?",
+            "options": [
+                {
+                    "text": "Gothicism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era believed people and nature are naturally good?",
+            "options": [
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era focused on everyday life and ordinary people?",
+            "options": [
+                {
+                    "text": "Realism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which literary movement celebrated African American culture and art?",
+            "options": [
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era was strongly connected to religion and strict moral rules?",
+            "options": [
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which literary tradition used stories to explain nature and life lessons?",
+            "options": [
+                {
+                    "text": "Native American Mythology",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era focused on new ideas and breaking old traditions?",
+            "options": [
+                {
+                    "text": "Modernism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which author is connected to Gothicism the most?",
+            "options": [
+                {
+                    "text": "Edgar Allan Poe",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Benjamin Franklin",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Ralph Waldo Emerson",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Mark Twain",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which author wrote many Gothic stories and poems?",
+            "options": [
+                {
+                    "text": "Edgar Allan Poe",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Walt Whitman",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Thomas Paine",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Benjamin Franklin",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era valued self-reliance and individuality?",
+            "options": [
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "\u201cThe dark castle stood alone during the storm.\u201d Which era does this match?",
+            "options": [
+                {
+                    "text": "Gothicism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "\u201cPeople should trust their feelings and connect with nature.\u201d Which era does this match?",
+            "options": [
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "\u201cHard work and faith lead people to heaven.\u201d Which era does this match?",
+            "options": [
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "\u201cThe story follows the struggles of a poor family in a small town.\u201d Which era does this match?",
+            "options": [
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": true
+                }
+            ]
+        },
+        {
+            "question": "\u201cNature teaches wisdom and truth.\u201d Which era does this match?",
+            "options": [
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era often used reason instead of emotion?",
+            "options": [
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era often focused on the beauty of nature?",
+            "options": [
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": true
+                }
+            ]
+        },
+        {
+            "question": "Which era often included supernatural events?",
+            "options": [
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": true
+                }
+            ]
+        },
+        {
+            "question": "Which era taught lessons through myths and legends?",
+            "options": [
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Native American Mythology",
+                    "isCorrect": true
+                }
+            ]
+        },
+        {
+            "question": "Which author is linked to Gothicism?",
+            "options": [
+                {
+                    "text": "Benjamin Franklin",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Thomas Paine",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Walt Whitman",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Edgar Allan Poe",
+                    "isCorrect": true
+                }
+            ]
+        },
+        {
+            "question": "Which era came first in American literature?",
+            "options": [
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Native American Mythology",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "\u201cThe poem celebrates jazz, music, and African American culture.\u201d Which era does this match?",
+            "options": [
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era focused most on reality instead of imagination?",
+            "options": [
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era was most likely to criticize society by showing harsh realities?",
+            "options": [
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "\u201cThe author writes about loneliness, fear, and the human mind.\u201d  Which era does this best match?",
+            "options": [
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": true
+                }
+            ]
+        },
+        {
+            "question": "Which era would most likely include writing about self-discovery in nature?",
+            "options": [
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Modernism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era was influenced by the idea that emotions are more important than logic?",
+            "options": [
+                {
+                    "text": "Romanticism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Modernism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "\u201cThe story explains how the stars were created through a legend.\u201d  Which era does this match?",
+            "options": [
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Native American Mythology",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Modernism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era often focused on doubt, confusion, and change after World War I?",
+            "options": [
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Modernism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era often warned people about sin and punishment?",
+            "options": [
+                {
+                    "text": "Modernism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "\u201cThe poem uses jazz rhythms and celebrates African American identity.\u201d  Which era does this best match?",
+            "options": [
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era would most likely include characters dealing with everyday struggles?",
+            "options": [
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era believed truth could be found through personal experience and intuition?",
+            "options": [
+                {
+                    "text": "Modernism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Transcendentalism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era would most likely include strange dreams, madness, or death?",
+            "options": [
+                {
+                    "text": "Realism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Harlem Renaissance",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "Which era focused on reason, debate, and persuasive arguments?",
+            "options": [
+                {
+                    "text": "Romanticism",
+                    "isCorrect": true
+                },
+                {
+                    "text": "Gothicism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Modernism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Age of Reason",
+                    "isCorrect": false
+                }
+            ]
+        },
+        {
+            "question": "\u201cThe main character questions the meaning of life in a fast-changing society.\u201d  Which era does this best match?",
+            "options": [
+                {
+                    "text": "Puritanism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Romanticism",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Native American Mythology",
+                    "isCorrect": false
+                },
+                {
+                    "text": "Modernism",
+                    "isCorrect": true
+                }
+            ]
+        }
+    ]
+}
