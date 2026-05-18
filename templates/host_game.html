@@ -73,11 +73,18 @@
             </div>
         </div>
     </div>
+    <div id="endgame-overlay" class="hidden" aria-live="polite">
+        <div id="endgame-card">
+            <div id="endgame-title">VICTORY!</div>
+            <div id="endgame-subtitle">The boss has been defeated.</div>
+        </div>
+    </div>
 </body>
 </html>
 <script>
     window.gameStatus = "lobby";
     window.lastRoundSignature = null;
+    window.endOverlayShown = false;
 
     const quizWarsAnimationDefaults = Object.freeze({
         attack: 560,
@@ -282,6 +289,12 @@
     function startGame() {
         getPlayersInLobby(); // Final refresh to ensure we have the latest player list before starting
         window.gameStatus = "in-progress";
+        window.endOverlayShown = false;
+
+        const overlay = document.getElementById('endgame-overlay');
+        if (overlay) {
+            overlay.classList.add('hidden');
+        }
 
         fetch("/game/start/{{ game_id }}")
             .then(response => {
@@ -311,11 +324,31 @@
             .catch(error => console.error('Error checking game status:', error));
     }
 
+    function showEndgameOverlay(outcome) {
+        if (window.endOverlayShown) return;
+
+        const overlay = document.getElementById('endgame-overlay');
+        const title = document.getElementById('endgame-title');
+        const subtitle = document.getElementById('endgame-subtitle');
+        if (!overlay || !title || !subtitle) return;
+
+        const normalized = String(outcome || '').toUpperCase();
+        const isVictory = normalized === 'WIN' || normalized === 'VICTORY';
+
+        title.textContent = isVictory ? 'VICTORY!' : 'DEFEAT';
+        subtitle.textContent = isVictory
+            ? 'The boss has been defeated.'
+            : 'The team has fallen. Regroup and try again.';
+
+        overlay.classList.remove('hidden');
+        window.endOverlayShown = true;
+    }
+
     function renderGameState() {
         fetch('/game/state/{{ game_id }}')
             .then(response => response.json())
             .then(data => {
-                if (data.game_status == "in-progress") {
+                if (data.game_status == "in-progress" || data.game_over) {
                     const bossHp = data.boss_state?.hp ?? data.game_state?.boss_hp ?? data.boss_health ?? 300;
                     const bossHealthBar = document.getElementById('boss-health-bar');
                     const bossHealthValue = document.getElementById('boss-health-value');
@@ -331,6 +364,8 @@
                         bossHealthValue.textContent = `${Math.max(0, bossHp)} / 300`;
                     }
 
+                    const avatarMaxHealth = data.avatar_max_health || { Wizard: 25, Knight: 40, Monk: 35 };
+
                     const updateBarByName = (name, hp, maxHp) => {
                         const match = Array.from(document.querySelectorAll('.avatar-bossbar')).find(div => {
                             const h = div.querySelector('h1');
@@ -341,6 +376,10 @@
                         if (input) {
                             input.max = maxHp;
                             input.value = hp;
+                            const hpPercent = Math.max(0, Math.min(100, (Number(hp) / Math.max(Number(maxHp), 1)) * 100));
+                            input.style.setProperty('--hp-percent', `${hpPercent}%`);
+                            input.setAttribute('aria-valuenow', String(Math.max(0, hp)));
+                            input.setAttribute('aria-valuemax', String(maxHp));
                         }
                         let hpSpan = match.querySelector('.hp-value');
                         if (!hpSpan) {
@@ -354,9 +393,9 @@
                     };
 
                     const avatarStates = data.avatar_states || {};
-                    updateBarByName('Wizard', avatarStates.Wizard?.hp ?? 25, 25);
-                    updateBarByName('Knight', avatarStates.Knight?.hp ?? 40, 40);
-                    updateBarByName('Monk', avatarStates.Monk?.hp ?? 35, 35);
+                    updateBarByName('Wizard', avatarStates.Wizard?.hp ?? avatarMaxHealth.Wizard ?? 25, avatarMaxHealth.Wizard ?? 25);
+                    updateBarByName('Knight', avatarStates.Knight?.hp ?? avatarMaxHealth.Knight ?? 40, avatarMaxHealth.Knight ?? 40);
+                    updateBarByName('Monk', avatarStates.Monk?.hp ?? avatarMaxHealth.Monk ?? 35, avatarMaxHealth.Monk ?? 35);
 
                     const updateStatusByName = (name, statuses) => {
                         const normalizedStatuses = Array.isArray(statuses) ? statuses.filter(Boolean) : [];
@@ -446,6 +485,7 @@
                     }
 
                     if (data.game_over) {
+                        showEndgameOverlay(data.round_results?.outcome || data.outcome);
                         window.gameStatus = "lobby";
                     }
                 }
@@ -472,39 +512,84 @@
     .title {
         display: flex;
         justify-content: center;
-        width: 80%;
-        margin-bottom: 50px;
+        width: min(88%, 1400px);
+        margin-bottom: 42px;
     }
     .title h1 {
         margin: 0;
     }
     .ui {
         text-align: center;
-        font-size: 1.5rem;
+        font-size: clamp(1.6rem, 1.2vw + 1rem, 2.1rem);
+        line-height: 1.2;
     }
     #players {
-        margin-top: 30px;
+        margin-top: 34px;
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
-        gap: 20px;
+        gap: 18px;
     }
     .player-box {
-        background-color: white;
-        border: 2px solid #333;
-        border-radius: 10px;
-        padding: 5px 10px;
-        min-width: 120px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        background-color: rgba(255, 255, 255, 0.95);
+        border: 2px solid rgba(51, 51, 51, 0.85);
+        border-radius: 12px;
+        padding: 12px 16px;
+        min-width: 160px;
+        box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+        font-size: 1.1rem;
     }
 
 
     /* GAME UI STYLES */
     #game-ui {
         display: none;
-        padding: 20px;
-        max-width: 1600px;
+        padding: 24px;
+        max-width: 1700px;
         margin: 0 auto;
+    }
+
+    #endgame-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(18, 9, 3, 0.74);
+        backdrop-filter: blur(6px);
+        padding: 24px;
+        box-sizing: border-box;
+    }
+
+    #endgame-overlay.hidden {
+        display: none;
+    }
+
+    #endgame-card {
+        width: min(920px, 92vw);
+        border-radius: 24px;
+        border: 4px solid rgba(255, 239, 204, 0.55);
+        background: linear-gradient(180deg, #3c240f 0%, #24130a 100%);
+        color: #fff7ea;
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42);
+        text-align: center;
+        padding: 48px 28px;
+    }
+
+    #endgame-title {
+        font-size: clamp(3.2rem, 7vw, 8rem);
+        line-height: 0.95;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 20px rgba(255, 213, 135, 0.35);
+        margin-bottom: 18px;
+    }
+
+    #endgame-subtitle {
+        font-size: clamp(1.2rem, 2.2vw, 2.1rem);
+        opacity: 0.96;
+        letter-spacing: 0.03em;
     }
     #bossbars {
         display: flex;
@@ -513,14 +598,15 @@
         width: 100%;
         min-height: 25vh;
         box-sizing: border-box;
-        gap: 20px;
+        gap: 24px;
+        flex-wrap: wrap;
     }
     #avatar-health {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 18px;
         align-items: flex-start;
-        padding: 18px;
+        padding: 22px 24px;
         border: 2px solid rgba(51, 51, 51, 0.12);
         border-radius: 14px;
         background: rgba(255, 255, 255, 0.92);
@@ -537,25 +623,27 @@
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        min-width: 90px;
+        min-width: 110px;
         gap: 4px;
     }
     .avatar-bossbar h1 {
         margin: 0;
         text-align: left;
+        font-size: 1.8rem;
+        line-height: 1;
     }
     .avatar-status {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        max-width: 180px;
+        gap: 8px;
+        max-width: 230px;
     }
     .avatar-status-chip {
         display: inline-flex;
         align-items: center;
-        padding: 3px 8px;
+        padding: 5px 10px;
         border-radius: 999px;
-        font-size: 0.72rem;
+        font-size: 0.82rem;
         line-height: 1.2;
         letter-spacing: 0.02em;
         border: 1px solid rgba(0,0,0,0.08);
@@ -573,12 +661,12 @@
     .avatar-status-chip.is-shocked { background: #fff4bf; color: #856900; }
     .avatar-status-chip.is-weakened { background: #ffe0e0; color: #a03b3b; }
     .avatar-bossbar input[type="range"] {
-        width: 240px;
+        width: min(280px, 26vw);
     }
     .hp-value {
-        font-size: 0.9rem;
+        font-size: 1rem;
         color: #222;
-        margin-left: 8px;
+        margin-left: 10px;
     }
 
     /* Bossbar visual styles (non-interactable) */
@@ -586,16 +674,16 @@
         -webkit-appearance: none;
         appearance: none;
         pointer-events: none;
-        height: 14px;
-        border-radius: 8px;
+        height: 18px;
+        border-radius: 10px;
         background: #444;
-        width: 80%;
+        width: 82%;
         overflow: hidden;
     }
     input.boss-range::-webkit-slider-runnable-track {
-        height: 14px;
+        height: 18px;
         -webkit-appearance: none;
-        border-radius: 8px;
+        border-radius: 10px;
         background: linear-gradient(90deg, #e74c3c 0%, #e74c3c var(--hp-percent,100%), #444 var(--hp-percent,100%), #444 100%);
     }
     input.boss-range::-webkit-slider-thumb {
@@ -604,8 +692,8 @@
         height: 0;
     }
     input.boss-range::-moz-range-track {
-        height: 14px;
-        border-radius: 8px;
+        height: 18px;
+        border-radius: 10px;
         background: linear-gradient(90deg, #e74c3c 0%, #e74c3c var(--hp-percent,100%), #444 var(--hp-percent,100%), #444 100%);
     }
     input.boss-range::-moz-range-thumb { display: none; }
@@ -617,9 +705,9 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 10px;
-        padding: 18px;
-        width: 500px;
+        gap: 12px;
+        padding: 22px 24px;
+        width: min(560px, 100%);
         border: 2px solid rgba(51, 51, 51, 0.12);
         border-radius: 14px;
         background: rgba(255, 255, 255, 0.92);
@@ -630,10 +718,10 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 20px;
-        padding: 16px;
+        gap: 18px;
+        padding: 18px 22px;
         margin: 24px 0 0;
-        flex: 0 0 320px;
+        flex: 0 0 360px;
         background: linear-gradient(180deg, #40352b, #2e261f);
         border: 1px solid rgba(255,255,255,0.25);
         border-radius: 14px;
@@ -644,27 +732,27 @@
     }
 
     #phase-label {
-        font-size: 1rem;
+        font-size: 1.15rem;
         font-weight: bold;
-        letter-spacing: 2px;
+        letter-spacing: 2.5px;
         text-align: center;
     }
 
     #phase-timer {
-        font-size: 2.2rem;
+        font-size: 2.8rem;
         font-weight: bold;
         font-family: 'Courier New', monospace;
         color: #fff;
         background: rgba(0,0,0,0.75);
-        padding: 12px 20px;
+        padding: 12px 22px;
         border: 1px solid rgba(255,255,255,0.25);
         border-radius: 12px;
-        min-width: 88px;
+        min-width: 104px;
         text-align: center;
     }
 
     #game-stage {
-        margin-top: 24px;
+        margin-top: 28px;
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
@@ -673,7 +761,7 @@
     }
     #avatar-row {
         display: flex;
-        gap: 20px;
+        gap: 24px;
         align-items: flex-end;
         padding-left: 8px;
     }
@@ -691,8 +779,8 @@
         --qw-jump-height: 18px;
     }
     .avatar-image {
-        width: 270px;
-        height: 270px;
+        width: 286px;
+        height: 286px;
         object-fit: contain;
         display: block;
         transform-origin: center bottom;
@@ -713,8 +801,8 @@
         --qw-jump-height: 20px;
     }
     .boss-image {
-        width: 500px;
-        height: 400px;
+        width: 540px;
+        height: 430px;
         object-fit: cover;
         display: block;
         transform-origin: center bottom;
@@ -722,7 +810,87 @@
     }
     .avatar-label,
     .boss-label {
-        font-size: 1.2rem;
+        font-size: 1.4rem;
+        letter-spacing: 0.04em;
+        font-weight: 700;
+        text-shadow: 0 1px 0 rgba(255,255,255,0.45);
+    }
+
+    #boss-health h1 {
+        margin: 0;
+        font-size: 2rem;
+        letter-spacing: 0.04em;
+    }
+
+    #boss-health-value {
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+
+    @media (max-width: 1200px) {
+        #bossbars {
+            justify-content: center;
+        }
+
+        #avatar-health,
+        #boss-health,
+        #phase-indicator {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        #game-stage {
+            min-height: auto;
+            flex-wrap: wrap;
+            gap: 24px;
+            justify-content: center;
+        }
+
+        #boss-area {
+            padding-right: 0;
+        }
+
+        .boss-image {
+            width: min(540px, 90vw);
+            height: auto;
+        }
+    }
+
+    @media (max-width: 760px) {
+        #game-ui {
+            padding: 16px;
+        }
+
+        .ui {
+            font-size: 1.2rem;
+        }
+
+        #players {
+            gap: 12px;
+        }
+
+        .player-box {
+            min-width: 140px;
+            padding: 10px 12px;
+        }
+
+        #phase-indicator {
+            flex-basis: 100%;
+            flex-wrap: wrap;
+        }
+
+        #phase-timer {
+            font-size: 2.2rem;
+        }
+
+        .avatar-image {
+            width: min(82vw, 300px);
+            height: auto;
+        }
+
+        .avatar-bossbar input[type="range"] {
+            width: min(260px, 60vw);
+        }
     }
 
     .avatar-image.qw-idle,

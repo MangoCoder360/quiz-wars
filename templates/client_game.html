@@ -69,11 +69,119 @@
             color: var(--accent-2);
         }
         #question-meta,
-        #round-results,
         #game-over {
             text-align: center;
             font-size: 18px;
             margin-bottom: 12px;
+        }
+        #round-stage {
+            padding: 6px 0 2px;
+        }
+        #round-results-title {
+            font-family: 'Cinzel', serif;
+            font-size: 28px;
+            line-height: 1.2;
+            text-align: center;
+            margin: 0 0 8px;
+            color: var(--accent-2);
+        }
+        #round-results-subtitle {
+            text-align: center;
+            font-size: 18px;
+            margin: 0 0 16px;
+            color: #5f4a32;
+        }
+        #round-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .round-summary-card {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(107, 68, 35, 0.12);
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+        }
+        .round-summary-card.is-boss {
+            grid-column: 1 / -1;
+            background: linear-gradient(180deg, rgba(255, 250, 240, 0.92), rgba(246, 232, 206, 0.96));
+        }
+        .round-summary-icon {
+            width: 84px;
+            height: 84px;
+            flex: 0 0 84px;
+            border-radius: 14px;
+            object-fit: contain;
+            object-position: center bottom;
+            background: linear-gradient(180deg, #f8efd9, #efdfbe);
+            border: 2px solid rgba(107, 68, 35, 0.14);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+            padding: 4px;
+            box-sizing: border-box;
+        }
+        .round-summary-body {
+            flex: 1;
+            min-width: 0;
+        }
+        .round-summary-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: baseline;
+            margin-bottom: 6px;
+        }
+        .round-summary-name {
+            font-family: 'Cinzel', serif;
+            font-size: 22px;
+            color: var(--accent-2);
+        }
+        .round-summary-hp {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+        .round-summary-line {
+            font-size: 18px;
+            line-height: 1.35;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .round-summary-line.muted {
+            color: #6f5c43;
+        }
+        .round-summary-votes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .round-summary-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 14px;
+            line-height: 1.2;
+            background: rgba(107, 68, 35, 0.08);
+            color: var(--accent);
+            border: 1px solid rgba(107, 68, 35, 0.12);
+        }
+        .round-summary-chip.good {
+            background: rgba(47, 125, 50, 0.12);
+            color: var(--good);
+        }
+        .round-summary-chip.bad {
+            background: rgba(156, 47, 47, 0.12);
+            color: var(--bad);
+        }
+        .round-summary-chip.neutral {
+            background: rgba(107, 68, 35, 0.08);
+            color: var(--accent);
         }
         #answer-grid,
         #vote-grid {
@@ -93,7 +201,30 @@
             font-family: 'Cormorant Garamond', serif;
             font-weight: 700;
             padding: 16px;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 6px;
             transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+        }
+        .vote-action-name {
+            font-size: 24px;
+            line-height: 1.05;
+            color: var(--accent-2);
+        }
+        .vote-action-desc {
+            font-size: 16px;
+            line-height: 1.2;
+            color: #5f4a32;
+            font-weight: 600;
+        }
+        .vote-action-note {
+            font-size: 14px;
+            line-height: 1.2;
+            color: #9c2f2f;
+            font-weight: 700;
+            letter-spacing: 0.02em;
         }
         .tile-button:hover {
             transform: translateY(-2px);
@@ -104,6 +235,10 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+        .tile-button[title*="cooling"] {
+            background: linear-gradient(180deg, #f5e0d6, #e8cebf);
+            border-color: rgba(156, 47, 47, 0.2);
         }
         #game-message {
             margin-top: 12px;
@@ -153,7 +288,8 @@
         @media (max-width: 760px) {
             #answer-grid,
             #vote-grid,
-            #health-summary {
+            #health-summary,
+            #round-summary-grid {
                 grid-template-columns: 1fr;
             }
         }
@@ -194,7 +330,9 @@
                 </div>
 
                 <div id="round-stage" class="hidden">
-                    <h1 id="round-results"></h1>
+                    <h1 id="round-results-title">Round resolved</h1>
+                    <div id="round-results-subtitle"></div>
+                    <div id="round-summary-grid"></div>
                 </div>
 
                 <div id="game-over" class="hidden"></div>
@@ -235,6 +373,25 @@
         Monk: ["Heal", "Enchant", "DoublePunch"],
     };
 
+    const actionDescriptions = {
+        Wizard: {
+            Fire: 'Heavy single-target spell damage.',
+            Ice: 'Freeze the boss so it cannot attack this round.',
+            Lightning: 'Deal damage and apply Shocked status.',
+            Shield: 'Block the next incoming hit on this avatar.',
+        },
+        Knight: {
+            Break: 'Strong strike with high damage.',
+            Cleave: 'Reliable sword attack damage.',
+            Parry: 'Prepare to parry and reduce redirected damage.',
+        },
+        Monk: {
+            Heal: 'Restore HP to the Monk.',
+            Enchant: 'Buff next attack with bonus damage.',
+            DoublePunch: 'Two fast hits for strong total damage.',
+        },
+    };
+
     const state = {
         player: null,
         question: null,
@@ -251,6 +408,148 @@
         const message = document.getElementById('game-message');
         message.textContent = text || '';
         message.className = tone || '';
+    }
+
+    function getAvatarIconPath(avatarName) {
+        const normalizedName = String(avatarName || '').trim().toLowerCase();
+        if (normalizedName === 'wizard') return '/static/wizard.png';
+        if (normalizedName === 'knight') return '/static/knight.png';
+        if (normalizedName === 'monk') return '/static/monk.png';
+        return '/static/boss.png';
+    }
+
+    function buildVoteChip(label, tone = 'neutral') {
+        const chip = document.createElement('span');
+        chip.className = `round-summary-chip ${tone}`.trim();
+        chip.textContent = label;
+        return chip;
+    }
+
+    function getActionDescription(avatar, action) {
+        return actionDescriptions?.[avatar]?.[action] || 'Performs this avatar action.';
+    }
+
+    function buildRoundSummaryCard(avatarName, action, actionResult, voteDetail) {
+        const card = document.createElement('div');
+        card.className = 'round-summary-card';
+
+        const icon = document.createElement('img');
+        icon.className = 'round-summary-icon';
+        icon.alt = `${avatarName} icon`;
+        icon.src = getAvatarIconPath(avatarName);
+
+        const body = document.createElement('div');
+        body.className = 'round-summary-body';
+
+        const header = document.createElement('div');
+        header.className = 'round-summary-header';
+
+        const name = document.createElement('div');
+        name.className = 'round-summary-name';
+        name.textContent = avatarName;
+
+        const hp = document.createElement('div');
+        hp.className = 'round-summary-hp';
+        const avatarMaxHealth = state.gameState?.avatar_max_health || { Wizard: 25, Knight: 40, Monk: 35 };
+        const maxHp = avatarMaxHealth[avatarName] ?? (avatarName === 'Wizard' ? 25 : avatarName === 'Knight' ? 40 : 35);
+        const currentHp = state.gameState?.avatar_states?.[avatarName]?.hp ?? 0;
+        hp.textContent = `${Math.max(0, currentHp)} / ${maxHp} HP`;
+
+        header.appendChild(name);
+        header.appendChild(hp);
+
+        const line1 = document.createElement('div');
+        line1.className = 'round-summary-line';
+        line1.textContent = actionResult
+            ? `${avatarName} used ${action}${actionResult.damage ? ` for ${actionResult.damage} damage` : ''}.`
+            : `${avatarName} did not act this round.`;
+
+        const line2 = document.createElement('div');
+        line2.className = 'round-summary-line muted';
+        if (voteDetail) {
+            if (voteDetail.selection_reason === 'cooldown_override') {
+                line2.textContent = 'Voted action was on cooldown, so the game picked a different legal action.';
+            } else if (voteDetail.selection_reason === 'no_votes_random') {
+                line2.textContent = 'No votes were recorded for this avatar, so a random action was chosen.';
+            }
+        } else {
+            line2.textContent = 'No vote details were available for this avatar.';
+        }
+
+        const chips = document.createElement('div');
+        chips.className = 'round-summary-votes';
+        const voteEntries = Object.entries(voteDetail?.votes || {});
+        if (voteEntries.length > 0) {
+            voteEntries.forEach(([voteAction, count]) => {
+                chips.appendChild(buildVoteChip(`${voteAction} x${count}`, voteAction === action ? 'good' : 'neutral'));
+            });
+        } else {
+            chips.appendChild(buildVoteChip('No votes', 'bad'));
+        }
+
+        body.appendChild(header);
+        body.appendChild(line1);
+        body.appendChild(line2);
+        body.appendChild(chips);
+
+        card.appendChild(icon);
+        card.appendChild(body);
+        return card;
+    }
+
+    function buildBossSummaryCard(roundResults) {
+        const card = document.createElement('div');
+        card.className = 'round-summary-card is-boss';
+
+        const icon = document.createElement('img');
+        icon.className = 'round-summary-icon';
+        icon.alt = 'Boss icon';
+        icon.src = '/static/boss.png';
+
+        const body = document.createElement('div');
+        body.className = 'round-summary-body';
+
+        const header = document.createElement('div');
+        header.className = 'round-summary-header';
+
+        const name = document.createElement('div');
+        name.className = 'round-summary-name';
+        name.textContent = 'Jonah';
+
+        const bossHp = state.gameState?.boss_state?.hp ?? state.gameState?.boss_hp ?? state.gameState?.boss_health ?? 300;
+        const hp = document.createElement('div');
+        hp.className = 'round-summary-hp';
+        hp.textContent = `${Math.max(0, bossHp)} / 300 HP`;
+
+        header.appendChild(name);
+        header.appendChild(hp);
+
+        const line1 = document.createElement('div');
+        line1.className = 'round-summary-line';
+        if (roundResults.game_over) {
+            line1.textContent = roundResults.outcome === 'WIN' ? 'The boss was defeated.' : 'The team was defeated.';
+        } else {
+            line1.textContent = 'Boss and avatar health updated from the round.';
+        }
+
+        const chips = document.createElement('div');
+        chips.className = 'round-summary-votes';
+        (roundResults.boss_attacks || []).forEach(attack => {
+            if (attack && attack.message) {
+                chips.appendChild(buildVoteChip(attack.message, attack.damage > 0 ? 'bad' : 'neutral'));
+            }
+        });
+        if (!chips.children.length) {
+            chips.appendChild(buildVoteChip('No boss attack this round', 'neutral'));
+        }
+
+        body.appendChild(header);
+        body.appendChild(line1);
+        body.appendChild(chips);
+
+        card.appendChild(icon);
+        card.appendChild(body);
+        return card;
     }
 
     function showView(isGameView) {
@@ -274,6 +573,7 @@
     function renderGameState(gameState) {
         if (!gameState) return;
         state.gameState = gameState;
+        state.action_cooldowns = gameState.action_cooldowns || {};
 
         const bossState = gameState.boss_state || {};
         const bossHp = Number(gameState.boss_hp ?? gameState.boss_health ?? bossState.hp ?? 300);
@@ -381,13 +681,36 @@
         const voteGrid = document.getElementById('vote-grid');
         const avatar = state.assignedAvatar;
         const actions = avatarActions[avatar] || [];
+        const cooldownAction = state.action_cooldowns && state.action_cooldowns[avatar];
 
         voteGrid.innerHTML = '';
         actions.forEach(action => {
             const button = document.createElement('button');
             button.className = 'tile-button';
-            button.textContent = action;
-            button.onclick = () => submitVote(action);
+            const isOnCooldown = action === cooldownAction;
+
+            const actionName = document.createElement('span');
+            actionName.className = 'vote-action-name';
+            actionName.textContent = action;
+
+            const actionDesc = document.createElement('span');
+            actionDesc.className = 'vote-action-desc';
+            actionDesc.textContent = getActionDescription(avatar, action);
+
+            button.appendChild(actionName);
+            button.appendChild(actionDesc);
+            
+            if (isOnCooldown) {
+                button.disabled = true;
+                button.title = `${action} is cooling down. Use another action.`;
+                const cooldownNote = document.createElement('span');
+                cooldownNote.className = 'vote-action-note';
+                cooldownNote.textContent = 'Cooling down';
+                button.appendChild(cooldownNote);
+            } else {
+                button.onclick = () => submitVote(action);
+            }
+            
             voteGrid.appendChild(button);
         });
 
@@ -457,27 +780,50 @@
         if (!roundResults || state.roundHandled) return;
         state.roundHandled = true;
 
-        const actionMessages = [];
-        (roundResults.actions || []).forEach(action => {
-            if (action && action.avatar && action.action) {
-                actionMessages.push(`${action.avatar} used ${action.action}${action.damage ? ` for ${action.damage} damage` : ''}`);
-            }
-        });
-        (roundResults.boss_attacks || []).forEach(attack => {
-            if (attack && attack.message) {
-                actionMessages.push(attack.message);
-            }
-        });
-
         document.getElementById('question-stage').classList.add('hidden');
         document.getElementById('vote-stage').classList.add('hidden');
         document.getElementById('round-stage').classList.remove('hidden');
-        document.getElementById('round-results').textContent = actionMessages.length ? actionMessages.join(' • ') : 'Round resolved.';
+        document.getElementById('round-results-title').textContent = roundResults.game_over
+            ? (roundResults.outcome === 'WIN' ? 'Victory' : 'Defeat')
+            : 'Round resolved';
+
+        const subtitle = document.getElementById('round-results-subtitle');
+        if (subtitle) {
+            subtitle.textContent = roundResults.game_over
+                ? (roundResults.outcome === 'WIN' ? 'The boss was defeated.' : 'The team ran out of health or questions.')
+                : 'Here is what each avatar did this round.';
+        }
+
+        const summaryGrid = document.getElementById('round-summary-grid');
+        if (summaryGrid) {
+            summaryGrid.innerHTML = '';
+            const voteDetails = roundResults.vote_details || {};
+            const actionsByAvatar = {};
+            (roundResults.actions || []).forEach(action => {
+                if (action && action.avatar) {
+                    actionsByAvatar[action.avatar] = action;
+                }
+            });
+
+            ['Wizard', 'Knight', 'Monk'].forEach(avatarName => {
+                summaryGrid.appendChild(
+                    buildRoundSummaryCard(
+                        avatarName,
+                        actionsByAvatar[avatarName]?.action || 'No action',
+                        actionsByAvatar[avatarName],
+                        voteDetails[avatarName]
+                    )
+                );
+            });
+
+            summaryGrid.appendChild(buildBossSummaryCard(roundResults));
+        }
+
         if (state.gameState) {
             renderGameState(state.gameState);
         }
 
-        const roundSummaryDelayMs = 4500;
+        const roundSummaryDelayMs = 8000;
 
         window.setTimeout(async () => {
             try {

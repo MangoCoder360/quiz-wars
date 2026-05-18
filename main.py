@@ -37,6 +37,11 @@ active_games = {
             "Knight": {"hp": 40, "status": []},
             "Monk": {"hp": 35, "status": []}
         },
+        "avatar_max_health": {
+            "Wizard": 25,
+            "Knight": 40,
+            "Monk": 35
+        },
         "boss_state": {"hp": 300, "status": []},
         "votes": {"Wizard": {}, "Knight": {}, "Monk": {}},
         "action_cooldowns": {"Wizard": None, "Knight": None, "Monk": None},
@@ -55,6 +60,12 @@ dotenv.load_dotenv()
 app = Flask(__name__)
 client = OpenAI()
 QUESTION_SETS_DIR = "question_sets"
+
+AVATAR_MAX_HEALTH = {
+    "Wizard": 25,
+    "Knight": 40,
+    "Monk": 35,
+}
 
 def is_game_id_valid(game_id):
     game_id = int(game_id)
@@ -140,10 +151,11 @@ def _build_game_state(question_set, answer_timeout_seconds=60, vote_timeout_seco
         "current_question_index": 0,
         "questions_data": [],
         "avatar_states": {
-            "Wizard": {"hp": 25, "status": []},
-            "Knight": {"hp": 40, "status": []},
-            "Monk": {"hp": 35, "status": []}
+            "Wizard": {"hp": AVATAR_MAX_HEALTH["Wizard"], "status": []},
+            "Knight": {"hp": AVATAR_MAX_HEALTH["Knight"], "status": []},
+            "Monk": {"hp": AVATAR_MAX_HEALTH["Monk"], "status": []}
         },
+        "avatar_max_health": dict(AVATAR_MAX_HEALTH),
         "boss_state": {"hp": 300, "status": []},
         "votes": {"Wizard": {}, "Knight": {}, "Monk": {}},
         "eligible_voters": set(),
@@ -236,9 +248,10 @@ def _start_game_logic(game_data):
     game_data["game_status"] = "in-progress"
     game_data["game_over"] = False
     game_data["boss_state"] = {"hp": 300, "status": []}
-    game_data["avatar_states"]["Wizard"] = {"hp": 25, "status": []}
-    game_data["avatar_states"]["Knight"] = {"hp": 40, "status": []}
-    game_data["avatar_states"]["Monk"] = {"hp": 35, "status": []}
+    game_data["avatar_max_health"] = dict(AVATAR_MAX_HEALTH)
+    game_data["avatar_states"]["Wizard"] = {"hp": AVATAR_MAX_HEALTH["Wizard"], "status": []}
+    game_data["avatar_states"]["Knight"] = {"hp": AVATAR_MAX_HEALTH["Knight"], "status": []}
+    game_data["avatar_states"]["Monk"] = {"hp": AVATAR_MAX_HEALTH["Monk"], "status": []}
     game_data["action_cooldowns"] = {"Wizard": None, "Knight": None, "Monk": None}
     _sync_boss_health(game_data)
     _reset_round_state(game_data)
@@ -744,7 +757,8 @@ def apply_action_damage(game_data, avatar_name, action):
             # Heal restores 10 HP to the avatar (for now, heal self)
             heal_amount = 10
             old_hp = game_data["avatar_states"][avatar_name]["hp"]
-            game_data["avatar_states"][avatar_name]["hp"] = min(35, old_hp + heal_amount)
+            max_hp = game_data.get("avatar_max_health", {}).get(avatar_name, 35)
+            game_data["avatar_states"][avatar_name]["hp"] = min(max_hp, old_hp + heal_amount)
             actual_heal = game_data["avatar_states"][avatar_name]["hp"] - old_hp
             result["status_applied"].append(f"{avatar_name} healed {actual_heal} HP!")
         elif action == "Enchant":
@@ -777,6 +791,7 @@ def resolve_round(game_data):
     round_results = {
         "actions": [],
         "boss_attacks": [],
+        "vote_details": {},
         "game_over": False,
         "outcome": None
     }
@@ -784,6 +799,12 @@ def resolve_round(game_data):
     # For each avatar, find majority action
     for avatar_name in ["Wizard", "Knight", "Monk"]:
         avatar_votes = game_data["votes"][avatar_name]
+        vote_detail = {
+            "votes": dict(avatar_votes),
+            "selected_action": None,
+            "selection_reason": None,
+            "cooldown_before": game_data["action_cooldowns"][avatar_name],
+        }
         
         if not avatar_votes:
             # No votes for this avatar; pick random action
@@ -792,18 +813,24 @@ def resolve_round(game_data):
                 chosen_action = random.choice(available_actions)
             else:
                 chosen_action = get_avatar_actions(avatar_name)[0]
+            vote_detail["selection_reason"] = "no_votes_random"
         else:
             # Find action with most votes
             max_votes = max(avatar_votes.values())
             tied_actions = [action for action, count in avatar_votes.items() if count == max_votes]
             chosen_action = random.choice(tied_actions)
+            vote_detail["selection_reason"] = "majority_vote"
             
             # Check cooldown; if violates, pick another
             if chosen_action == game_data["action_cooldowns"][avatar_name]:
                 available_actions = [a for a in get_avatar_actions(avatar_name) if a != chosen_action]
                 if available_actions:
                     chosen_action = random.choice(available_actions)
+                    vote_detail["selection_reason"] = "cooldown_override"
         
+        vote_detail["selected_action"] = chosen_action
+        round_results["vote_details"][avatar_name] = vote_detail
+
         # Update cooldown
         game_data["action_cooldowns"][avatar_name] = chosen_action
         
