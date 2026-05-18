@@ -8,12 +8,13 @@
 <body onload="checkGameStatus()">
     <div id="waiting-room">
         <div class="title">
-            <img src="/static/quizWarsTitle.png" alt="Quiz Wars" style="max-width: 100%; height: auto; display: block;">
+            <img src="/static/quizWarsTitleInverted.png" alt="Quiz Wars" style="max-width: 100%; height: auto; display: block;">
         </div>
         <div class="ui">
             <button onclick="startGame()">Start Game</button>
-            <h1>Join at QUIZWARS.COM</h1>
-            <h1>{{ game_id }}</h1>
+            <button onclick="enterFullscreen()">Fullscreen</button>
+            <h1>Join at {{ GAME_URL }}</h1>
+            <h1 id="game-id-large">{{ game_id }}</h1>
             <div id="players"></div>
         </div>
     </div>
@@ -82,6 +83,20 @@
 </body>
 </html>
 <script>
+    //fs function
+    function enterFullscreen() {
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen();
+        } else if (elem.mozRequestFullScreen) { /* Firefox */
+            elem.mozRequestFullScreen();
+        } else if (elem.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { /* IE/Edge */
+            elem.msRequestFullscreen();
+        }
+    }
+
     window.gameStatus = "lobby";
     window.lastRoundSignature = null;
     window.endOverlayShown = false;
@@ -560,7 +575,7 @@
         display: flex;
         justify-content: center;
         width: min(88%, 1400px);
-        margin-bottom: 42px;
+        margin-bottom: 10px;
     }
     .title h1 {
         margin: 0;
@@ -571,7 +586,7 @@
         line-height: 1.2;
     }
     #players {
-        margin-top: 34px;
+        margin-top: 4px;
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
@@ -581,10 +596,16 @@
         background-color: rgba(255, 255, 255, 0.95);
         border: 2px solid rgba(51, 51, 51, 0.85);
         border-radius: 12px;
-        padding: 12px 16px;
-        min-width: 160px;
+        padding: 7px;
+        min-width: 140px;
         box-shadow: 0 8px 18px rgba(0,0,0,0.12);
         font-size: 1.1rem;
+    }
+    #game-id-large {
+        font-size: 4em;
+        letter-spacing: 0.1em;
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+        line-height: 0;
     }
 
 

@@ -59,6 +59,7 @@ game_locks = {
 dotenv.load_dotenv()
 app = Flask(__name__)
 client = OpenAI()
+GAME_URL = os.getenv("GAME_URL", "EXAMPLE.COM")
 QUESTION_SETS_DIR = "question_sets"
 
 AVATAR_MAX_HEALTH = {
@@ -354,7 +355,7 @@ def host_game(game_id):
     if not game_data:
         return "Game not found", 404
     
-    return render_template('host_game.html', game_id=game_id)
+    return render_template('host_game.html', game_id=game_id, GAME_URL=GAME_URL)
 
 @app.route('/question-sets')
 def question_sets():

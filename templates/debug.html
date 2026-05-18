@@ -121,7 +121,7 @@
 
     function spamPlayerJoins() {
         var gameId = prompt("Enter the game ID to spam joins to:");
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 25; i++) {
             const data = new URLSearchParams();
             data.append('player_name', `Player${i + 1}`);
             data.append('game_id', String(gameId));
